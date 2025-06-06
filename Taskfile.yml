@@ -58,3 +58,11 @@ tasks:
     desc: Install dependencies
     cmds:
       - go mod download
+
+  build-image:
+    desc: Build the image locally with ko
+    env:
+      KO_DOCKER_REPO: ghcr.io/stackloklabs/fetch/server
+      VERSION: dev-local
+    cmds:
+      - ko build --local --bare ./cmd/server
