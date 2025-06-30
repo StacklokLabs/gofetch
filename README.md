@@ -11,17 +11,21 @@ An SSE Go implementation of the `fetch` MCP server that retrieves web content.
 
 ## Why _this_ fetch and not `mcp/fetch`?
 
-This Go implementation provides similar functionality as the original [Python MCP fetch server](https://github.com/modelcontextprotocol/servers/tree/main/src/fetch) but has the following benefits:
+This Go implementation provides similar functionality as the original
+[Python MCP fetch server](https://github.com/modelcontextprotocol/servers/tree/main/src/fetch)
+but has the following benefits:
 
 - Lower memory usage
 - Faster startup time / shutdown time
-- Single binary deployment - making tool poisoning attacks harder than in interpreted languages
+- Single binary deployment - making tool poisoning attacks harder than in
+  interpreted languages
 - Better concurrent request handling
-- Better container security [than original](https://github.com/modelcontextprotocol/servers/blob/main/src/fetch/Dockerfile)
-   - Non root user
-   - Distroless / minimal image
-   - Container signing with build provenance
-- SSE not STDIO
+- Better container security
+  [than original](https://github.com/modelcontextprotocol/servers/blob/main/src/fetch/Dockerfile)
+  - Non-root user
+  - Distroless / minimal image
+  - Container signing with build provenance
+- Uses SSE transport instead of STDIO
 - More test coverage
 
 ## Prerequisites
@@ -33,22 +37,22 @@ This Go implementation provides similar functionality as the original [Python MC
 
 1. Clone the repository:
 
-```bash
-git clone https://github.com/StacklokLabs/fetch.git
-cd fetch
-```
+   ```bash
+   git clone https://github.com/StacklokLabs/fetch.git
+   cd fetch
+   ```
 
 2. Install dependencies:
 
-```bash
-task install
-```
+   ```bash
+   task install
+   ```
 
 3. Build the server:
 
-```bash
-task build
-```
+   ```bash
+   task build
+   ```
 
 ## Usage
 
@@ -61,13 +65,16 @@ task run
 ```
 
 The server will start and expose:
+
 - SSE endpoint: `http://localhost:8080/sse`
 - Message endpoint: `http://localhost:8080/message`
 
 #### Command Line Options
 
-- `--addr`: Address to listen on (default: ":8080", can be set via MCP_PORT env var)
-- `--user-agent`: Custom User-Agent string (default: "Mozilla/5.0 (compatible; MCPFetchBot/1.0)")
+- `--addr`: Address to listen on (default: ":8080", can be set via MCP_PORT env
+  var)
+- `--user-agent`: Custom User-Agent string (default: "Mozilla/5.0 (compatible;
+  MCPFetchBot/1.0)")
 - `--ignore-robots-txt`: Ignore robots.txt rules
 - `--proxy-url`: Proxy URL for requests
 
@@ -121,14 +128,18 @@ The server provides a single tool called `fetch` with the following parameters:
 
 ### Tool: `fetch`
 
-Fetches a URL from the internet and optionally extracts its contents as markdown.
+Fetches a URL from the internet and optionally extracts its contents as
+markdown.
 
 #### Parameters
 
 - `url` (required): The URL to fetch
-- `max_length` (optional): Maximum number of characters to return (default: 5000, max: 1000000)
-- `start_index` (optional): Starting character index for content extraction (default: 0)
-- `raw` (optional): Return raw HTML content without simplification (default: false)
+- `max_length` (optional): Maximum number of characters to return (default:
+  5000, max: 1000000)
+- `start_index` (optional): Starting character index for content extraction
+  (default: 0)
+- `raw` (optional): Return raw HTML content without simplification (default:
+  false)
 
 #### Examples
 
@@ -143,7 +154,7 @@ Fetches a URL from the internet and optionally extracts its contents as markdown
 
 ```json
 {
-  "name": "fetch", 
+  "name": "fetch",
   "arguments": {
     "url": "https://example.com",
     "max_length": 1000,
@@ -180,20 +191,24 @@ task deps
 
 ## Running as an MCP Server with ToolHive
 
-fetch can be run as a Model Context Protocol (MCP) server using [ToolHive](https://github.com/stacklok/toolhive), which simplifies the deployment and management of MCP servers.
+fetch can be run as a Model Context Protocol (MCP) server using
+[ToolHive](https://github.com/stacklok/toolhive), which simplifies the
+deployment and management of MCP servers.
 
 ### Prerequisites
 
-1. Install ToolHive by following the [installation instructions](https://github.com/stacklok/toolhive#installation).
+1. Install ToolHive by following the
+   [installation instructions](https://docs.stacklok.com/toolhive/guides-cli/install).
 2. Ensure you have Docker or Podman installed on your system.
 
 ### Running fetch with ToolHive (Recommended)
 
-The easiest way to run fetch is using the packaged version available in ToolHive's registry:
+The easiest way to run fetch is using the packaged version available in
+ToolHive's registry:
 
 ```bash
-# Enable auto-discovery to automatically configure supported clients
-thv config auto-discovery true
+# Register a supported client so ToolHive can auto-configure your environment
+thv client setup
 
 # Run the fetch server
 thv run fetch --transport sse
@@ -207,7 +222,8 @@ thv registry info fetch
 
 ### Advanced Usage with Custom Configuration
 
-For advanced users who need custom configuration, you can also run fetch using the container image directly:
+For advanced users who need custom configuration, you can also run fetch using
+the container image directly:
 
 ```bash
 # Run the fetch server using the published container image
@@ -215,6 +231,7 @@ thv run --name fetch --transport sse --target-port 8080 ghcr.io/stackloklabs/fet
 ```
 
 This command:
+
 - Names the server instance "fetch"
 - Uses the SSE transport protocol
 - Uses the latest published fetch image from GitHub Container Registry
@@ -233,7 +250,8 @@ To verify that the fetch server is running:
 thv list
 ```
 
-This will show all running MCP servers managed by ToolHive, including the fetch server.
+This will show all running MCP servers managed by ToolHive, including the fetch
+server.
 
 To stop the fetch server:
 
@@ -251,14 +269,16 @@ thv rm fetch
 
 ## Contributing
 
-We welcome contributions to this MCP server! If you'd like to contribute, please review
-the [CONTRIBUTING guide](./CONTRIBUTING.md) for details on how to get started.
+We welcome contributions to this MCP server! If you'd like to contribute, please
+review the [CONTRIBUTING guide](./CONTRIBUTING.md) for details on how to get
+started.
 
 If you run into a bug or have a feature request, please
-[open an issue](https://github.com/StacklokLabs/fetch/issues) in the
-repository or join us in the `#mcp-servers` channel on our
+[open an issue](https://github.com/StacklokLabs/fetch/issues) in the repository
+or join us in the `#mcp-servers` channel on our
 [community Discord server](https://discord.gg/stacklok).
 
 ## License
 
-This project is licensed under the Apache v2 License - see the LICENSE file for details.
+This project is licensed under the Apache v2 License - see the LICENSE file for
+details.
