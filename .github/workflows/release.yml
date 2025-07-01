@@ -57,7 +57,7 @@ jobs:
 
       - name: Build and push container
         env:
-          KO_DOCKER_REPO: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/fetch
+          KO_DOCKER_REPO: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/gofetch
           VERSION: ${{ steps.tag.outputs.VERSION }}
           CREATION_TIME: $(date -u +'%Y-%m-%dT%H:%M:%SZ')
         run: |
@@ -75,7 +75,7 @@ jobs:
 
       - name: Sign Image with Cosign
         env:
-          KO_DOCKER_REPO: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/fetch
+          KO_DOCKER_REPO: ghcr.io/${{ steps.repo_owner.outputs.OWNER }}/gofetch
         run: |
           TAG=$(echo "${{ steps.tag.outputs.VERSION }}" | sed 's/+/_/g')
           # Sign the ko image
