@@ -1,10 +1,10 @@
-# Contributing to `fetch` <!-- omit from toc -->
+# Contributing to `gofetch` <!-- omit from toc -->
 
-First off, thank you for taking the time to contribute to fetch! :+1: :tada:
-fetch is released under the Apache 2.0 license. If you would like to contribute
+First off, thank you for taking the time to contribute to gofetch! :+1: :tada:
+gofetch is released under the Apache 2.0 license. If you would like to contribute
 something or want to hack on the code, this document should help you get
-started. You can find some hints for starting development in fetch's
-[README](https://github.com/StacklokLabs/fetch/blob/main/README.md).
+started. You can find some hints for starting development in gofetch's
+[README](https://github.com/StacklokLabs/gofetch/blob/main/README.md).
 
 ## Table of contents <!-- omit from toc -->
 
@@ -19,17 +19,17 @@ started. You can find some hints for starting development in fetch's
 ## Code of conduct
 
 This project adheres to the
-[Contributor Covenant](https://github.com/StacklokLabs/fetch/blob/main/CODE_OF_CONDUCT.md)
+[Contributor Covenant](https://github.com/StacklokLabs/gofetch/blob/main/CODE_OF_CONDUCT.md)
 code of conduct. By participating, you are expected to uphold this code. Please
 report unacceptable behavior to
 [code-of-conduct@stacklok.dev](mailto:code-of-conduct@stacklok.dev).
 
 ## Reporting security vulnerabilities
 
-If you think you have found a security vulnerability in fetch please DO NOT
+If you think you have found a security vulnerability in gofetch please DO NOT
 disclose it publicly until we've had a chance to fix it. Please don't report
 security vulnerabilities using GitHub issues; instead, please follow this
-[process](https://github.com/StacklokLabs/fetch/blob/main/SECURITY.md)
+[process](https://github.com/StacklokLabs/gofetch/blob/main/SECURITY.md)
 
 ## How to contribute
 
@@ -46,7 +46,7 @@ sample project that reproduces the problem.
 ### Not sure how to start contributing?
 
 PRs to resolve existing issues are greatly appreciated and issues labeled as
-["good first issue"](https://github.com/StacklokLabs/fetch/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
+["good first issue"](https://github.com/StacklokLabs/gofetch/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
 are a great place to start!
 
 ### Pull request process
@@ -56,14 +56,14 @@ message to indicate that the contributor agrees to the Developer Certificate of
 Origin. For additional details, check out the [DCO instructions](dco.md).
 
 - Create an issue outlining the fix or feature.
-- Fork the fetch repository to your own GitHub account and clone it locally.
+- Fork the gofetch repository to your own GitHub account and clone it locally.
 - Hack on your changes.
 - Correctly format your commit messages, see
   [Commit message guidelines](#commit-message-guidelines) below.
 - Open a PR by ensuring the title and its description reflect the content of the
   PR.
 - Ensure that CI passes, if it fails, fix the failures.
-- Every pull request requires a review from the core fetch team before merging.
+- Every pull request requires a review from the core gofetch team before merging.
 - Once approved, all of your commits will be squashed into a single commit with
   your PR title.
 

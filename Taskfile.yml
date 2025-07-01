@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  BINARY_NAME: fetch-server
+  BINARY_NAME: gofetch
   BUILD_DIR: build
   MAIN_PACKAGE: ./cmd/server
 
@@ -62,7 +62,7 @@ tasks:
   build-image:
     desc: Build the image locally with ko
     env:
-      KO_DOCKER_REPO: ghcr.io/stackloklabs/fetch/server
+      KO_DOCKER_REPO: ghcr.io/stackloklabs/gofetch/server
       VERSION: dev-local
     cmds:
       - ko build --local --bare ./cmd/server

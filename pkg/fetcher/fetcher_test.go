@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chrisburns/fetch-mcp-server/pkg/processor"
-	"github.com/chrisburns/fetch-mcp-server/pkg/robots"
+	"github.com/stackloklabs/gofetch/pkg/processor"
+	"github.com/stackloklabs/gofetch/pkg/robots"
 )
 
 // createMockServer creates a test HTTP server with various endpoints

@@ -1,4 +1,4 @@
-module github.com/chrisburns/fetch-mcp-server
+module github.com/stackloklabs/gofetch
 
 go 1.23.2
 

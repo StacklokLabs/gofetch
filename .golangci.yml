@@ -97,7 +97,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/StacklokLabs/fetch)
+        - prefix(github.com/StacklokLabs/gofetch)
   exclusions:
     generated: lax
     paths:

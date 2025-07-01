@@ -1,4 +1,4 @@
-// Package server provides the MCP server implementation for fetching web content.
+// Package server provides the MCP server implementation for gofetching web content.
 package server
 
 import (
@@ -9,12 +9,12 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/chrisburns/fetch-mcp-server/pkg/config"
-	"github.com/chrisburns/fetch-mcp-server/pkg/fetcher"
-	"github.com/chrisburns/fetch-mcp-server/pkg/processor"
-	"github.com/chrisburns/fetch-mcp-server/pkg/robots"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/stackloklabs/gofetch/pkg/config"
+	"github.com/stackloklabs/gofetch/pkg/fetcher"
+	"github.com/stackloklabs/gofetch/pkg/processor"
+	"github.com/stackloklabs/gofetch/pkg/robots"
 )
 
 // FetchServer represents the MCP server for fetching web content
@@ -142,7 +142,7 @@ func (fs *FetchServer) Start() error {
 
 // logServerStartup prints startup information
 func (fs *FetchServer) logServerStartup() {
-	log.Printf("=== Starting MCP Fetch Server ===")
+	log.Printf("=== Starting MCP gofetch Server ===")
 	log.Printf("Server address: %s", fs.config.Address)
 	log.Printf("User agent: %s", fs.config.UserAgent)
 	log.Printf("Ignore robots.txt: %v", fs.config.IgnoreRobots)

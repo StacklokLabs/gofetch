@@ -1,10 +1,23 @@
-# Fetch MCP Server
 
-An SSE Go implementation of the `fetch` MCP server that retrieves web content.
+<div align="center">
+<img src="docs/gofetch.png" width="300">
+
+[![GitHub Release][release-img]][release]
+[![Test][test-img]][test]
+[![Go Report Card][go-report-img]][go-report]
+[![License: Apache-2.0][license-img]][license]
+[![GitHub Downloads][github-downloads-img]][release]
+![Docker Pulls][docker-pulls]
+</div>
+
+<!-- <img src="docs/gofetch.png" alt="gofetch" height="300" style="display: inline-block; vertical-align: top; margin-right: 20px;"><span style="display: inline-block; vertical-align: top;"> -->
+
+An SSE Go implementation of the `gofetch` MCP server that retrieves web content.</span>
+
 
 ## Features
 
-- **Web Content Retrieval**: Fetches URLs and extracts textual content
+- **Web Content Retrieval**: gofetches URLs and extracts textual content
 - **Content Extraction**: Extract main content from web pages
 - **Robots.txt Compliance**: Respects robots.txt rules (can be disabled)
 - **Configurable**: Supports custom user agents and proxy settings
@@ -38,8 +51,8 @@ but has the following benefits:
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/StacklokLabs/fetch.git
-   cd fetch
+   git clone https://github.com/StacklokLabs/gofetch.git
+   cd gofetch
    ```
 
 2. Install dependencies:
@@ -74,7 +87,7 @@ The server will start and expose:
 - `--addr`: Address to listen on (default: ":8080", can be set via MCP_PORT env
   var)
 - `--user-agent`: Custom User-Agent string (default: "Mozilla/5.0 (compatible;
-  MCPFetchBot/1.0)")
+  MCPGoFetchBot/1.0)")
 - `--ignore-robots-txt`: Ignore robots.txt rules
 - `--proxy-url`: Proxy URL for requests
 
@@ -82,32 +95,32 @@ The server will start and expose:
 
 ```bash
 # Basic server on port 8080
-./fetch-mcp-server --addr :8080
+./gofetch --addr :8080
 
 # Custom port with user agent
-./fetch-mcp-server --addr :3000 --user-agent "MyBot/1.0"
+./gofetch --addr :3000 --user-agent "MyBot/1.0"
 
 # Ignore robots.txt on custom port
-./fetch-mcp-server --addr :8080 --ignore-robots-txt
+./gofetch --addr :8080 --ignore-robots-txt
 
 # Use proxy
-./fetch-mcp-server --addr :8080 --proxy-url "http://proxy.example.com:8080"
+./gofetch --addr :8080 --proxy-url "http://proxy.example.com:8080"
 
 # Use environment variable for port
-MCP_PORT=9090 ./fetch-mcp-server
+MCP_PORT=9090 ./gofetc
 ```
 
 ### Docker Usage
 
 ```bash
 # Build Docker image
-docker build -t fetch-mcp-server .
+docker build -t gofetch .
 
 # Run with default settings
-docker run -p 8080:8080 fetch-mcp-server
+docker run -p 8080:8080 gofetch
 
 # Run with custom arguments
-docker run -p 9090:9090 fetch-mcp-server --addr :9090
+docker run -p 9090:9090 gofetch --addr :9090
 ```
 
 ### Testing the Server
@@ -124,7 +137,7 @@ curl -N http://localhost:8080/sse
 
 ## MCP Tools
 
-The server provides a single tool called `fetch` with the following parameters:
+The server provides a single tool called `gofetch` with the following parameters:
 
 ### Tool: `fetch`
 
@@ -191,7 +204,7 @@ task deps
 
 ## Running as an MCP Server with ToolHive
 
-fetch can be run as a Model Context Protocol (MCP) server using
+gofetch can be run as a Model Context Protocol (MCP) server using
 [ToolHive](https://github.com/stacklok/toolhive), which simplifies the
 deployment and management of MCP servers.
 
@@ -203,7 +216,7 @@ deployment and management of MCP servers.
 
 ### Running fetch with ToolHive (Recommended)
 
-The easiest way to run fetch is using the packaged version available in
+The easiest way to run gofetch is using the packaged version available in
 ToolHive's registry:
 
 ```bash
@@ -211,13 +224,13 @@ ToolHive's registry:
 thv client setup
 
 # Run the fetch server
-thv run fetch --transport sse
+thv run gofetch --transport sse
 
 # List running servers
 thv list
 
 # Get detailed information about the server
-thv registry info fetch
+thv registry info gofetch
 ```
 
 ### Advanced Usage with Custom Configuration
@@ -227,7 +240,7 @@ the container image directly:
 
 ```bash
 # Run the fetch server using the published container image
-thv run --name fetch --transport sse --target-port 8080 ghcr.io/stackloklabs/fetch/server:latest
+thv run --name gofetch --transport sse --target-port 8080 ghcr.io/stackloklabs/gofetch/server:latest
 ```
 
 This command:
@@ -239,32 +252,32 @@ This command:
 To use a specific version instead of the latest:
 
 ```bash
-thv run --name fetch --transport sse --target-port 8080 ghcr.io/stackloklabs/fetch/server:v0.0.1
+thv run --name gofetch --transport sse --target-port 8080 ghcr.io/stackloklabs/gofetch/server:v0.0.1
 ```
 
-### Managing the fetch Server
+### Managing the gofetch Server
 
-To verify that the fetch server is running:
+To verify that the gofetch server is running:
 
 ```bash
 thv list
 ```
 
-This will show all running MCP servers managed by ToolHive, including the fetch
+This will show all running MCP servers managed by ToolHive, including the gofetch
 server.
 
-To stop the fetch server:
+To stop the gofetch server:
 
 ```bash
 # For custom named version
-thv stop fetch
+thv stop gofetch
 ```
 
 To remove the server instance completely:
 
 ```bash
 # For custom named version
-thv rm fetch
+thv rm gofetch
 ```
 
 ## Contributing
@@ -274,7 +287,7 @@ review the [CONTRIBUTING guide](./CONTRIBUTING.md) for details on how to get
 started.
 
 If you run into a bug or have a feature request, please
-[open an issue](https://github.com/StacklokLabs/fetch/issues) in the repository
+[open an issue](https://github.com/StacklokLabs/gofetch/issues) in the repository
 or join us in the `#mcp-servers` channel on our
 [community Discord server](https://discord.gg/stacklok).
 
@@ -282,3 +295,15 @@ or join us in the `#mcp-servers` channel on our
 
 This project is licensed under the Apache v2 License - see the LICENSE file for
 details.
+
+<!-- Badge Links -->
+[release-img]: https://img.shields.io/github/release/StacklokLabs/gofetch.svg
+[release]: https://github.com/StacklokLabs/gofetch/releases
+[test-img]: https://github.com/StacklokLabs/gofetch/workflows/Main%20build/badge.svg
+[test]: https://github.com/StacklokLabs/gofetch/actions?query=workflow%3ATest
+[go-report-img]: https://goreportcard.com/badge/github.com/StacklokLabs/gofetch
+[go-report]: https://goreportcard.com/report/github.com/StacklokLabs/gofetch
+[license-img]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
+[license]: https://opensource.org/licenses/Apache-2.0
+[github-downloads-img]: https://img.shields.io/github/downloads/StacklokLabs/gofetch/total.svg
+[docker-pulls]: https://img.shields.io/docker/pulls/stacklok/gofetch.svg

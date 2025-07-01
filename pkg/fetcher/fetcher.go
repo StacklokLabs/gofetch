@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/chrisburns/fetch-mcp-server/pkg/processor"
-	"github.com/chrisburns/fetch-mcp-server/pkg/robots"
+	"github.com/stackloklabs/gofetch/pkg/processor"
+	"github.com/stackloklabs/gofetch/pkg/robots"
 )
 
 // HTTPFetcher handles HTTP requests and content retrieval

@@ -1,15 +1,15 @@
 builds:
-- id: fetch-server
+- id: gofetch-server
   dir: .
   main: ./cmd/server
   ldflags:
   - -X main.version={{.Env.VERSION}}
   labels:
     org.opencontainers.image.created: "{{.Env.CREATION_TIME}}"
-    org.opencontainers.image.description: "fetch - A HTTP fetching MCP server."
+    org.opencontainers.image.description: "gofetch - A HTTP fetching MCP server."
     org.opencontainers.image.licenses: "Apache-2.0"
     org.opencontainers.image.revision: "{{.Env.GITHUB_SHA}}"
     org.opencontainers.image.source: "{{.Env.GITHUB_SERVER_URL}}/{{.Env.GITHUB_REPOSITORY}}"
-    org.opencontainers.image.title: "fetch"
+    org.opencontainers.image.title: "gofetch"
     org.opencontainers.image.url: "{{.Env.GITHUB_SERVER_URL}}/{{.Env.GITHUB_REPOSITORY}}"
     org.opencontainers.image.version: "{{.Env.VERSION}}"

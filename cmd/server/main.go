@@ -5,8 +5,8 @@ import (
 	"context"
 	"log"
 
-	"github.com/chrisburns/fetch-mcp-server/pkg/config"
-	"github.com/chrisburns/fetch-mcp-server/pkg/server"
+	"github.com/stackloklabs/gofetch/pkg/config"
+	"github.com/stackloklabs/gofetch/pkg/server"
 )
 
 func main() {
