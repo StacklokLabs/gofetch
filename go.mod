@@ -8,7 +8,7 @@ require (
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/go-shiori/go-readability v0.0.0-20231029095239-6b97d5aba789
 	github.com/mark3labs/mcp-go v0.31.0
-	golang.org/x/net v0.25.0
+	golang.org/x/net v0.41.0
 )
 
 require (
@@ -19,5 +19,5 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
-	golang.org/x/text v0.15.0 // indirect
+	golang.org/x/text v0.26.0 // indirect
 )
