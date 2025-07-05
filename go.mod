@@ -7,7 +7,7 @@ toolchain go1.24.0
 require (
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/go-shiori/go-readability v0.0.0-20231029095239-6b97d5aba789
-	github.com/mark3labs/mcp-go v0.31.0
+	github.com/mark3labs/mcp-go v0.32.0
 	golang.org/x/net v0.41.0
 )
 
