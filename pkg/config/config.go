@@ -3,39 +3,43 @@ package config
 
 import (
 	"flag"
-	"fmt"
-	"log"
 	"os"
 	"strconv"
 )
 
 // Constants
 const (
-	DefaultPort   = ":8080"
-	ServerName    = "fetch-server"
-	ServerVersion = "1.0.0"
-	DefaultUA     = "Mozilla/5.0 (compatible; MCPFetchBot/1.0)"
+	ServerName       = "fetch-server"
+	ServerVersion    = "1.0.0"
+	DefaultUA        = "Mozilla/5.0 (compatible; MCPFetchBot/1.0)"
+)
+
+// Transport types
+const (
+	TransportSSE            = "sse"
+	TransportStreamableHTTP = "streamable-http"
 )
 
 // Config holds the server configuration
 type Config struct {
-	Address      string
+	Port         int
 	UserAgent    string
 	IgnoreRobots bool
 	ProxyURL     string
+	Transport    string
 }
+
+var transport string
+var port int
 
 // ParseFlags parses command line flags and returns configuration
 func ParseFlags() Config {
 	var config Config
 
-	addr := flag.String("addr", GetDefaultAddress(), "Address to listen on")
-	flag.StringVar(&config.UserAgent, "user-agent", "", "Custom User-Agent string")
-	flag.BoolVar(&config.IgnoreRobots, "ignore-robots-txt", false, "Ignore robots.txt rules")
-	flag.StringVar(&config.ProxyURL, "proxy-url", "", "Proxy URL for requests")
-	flag.Parse()
+	parseConfig(&config)
 
-	config.Address = *addr
+	config.Port = port
+	config.Transport = transport
 
 	// Set default user agent if not provided
 	if config.UserAgent == "" {
@@ -45,24 +49,22 @@ func ParseFlags() Config {
 	return config
 }
 
-// GetDefaultAddress returns the default server address from environment or constant
-func GetDefaultAddress() string {
-	portEnv := os.Getenv("MCP_PORT")
-	if portEnv == "" {
-		return DefaultPort
-	}
+// parseConfig parses the command line flags and environment variables
+// to set the transport and port for the MCP server
+func parseConfig(config *Config) {
+	flag.StringVar(&transport, "transport", "streamable-http", "Transport type: sse or streamable-http")
+	flag.IntVar(&port, "port", 8080, "Port number for HTTP-based transports")
+	flag.StringVar(&config.UserAgent, "user-agent", "", "Custom User-Agent string")
+	flag.BoolVar(&config.IgnoreRobots, "ignore-robots-txt", false, "Ignore robots.txt rules")
+	flag.StringVar(&config.ProxyURL, "proxy-url", "", "Proxy URL for requests")
+	flag.Parse()
 
-	port, err := strconv.Atoi(portEnv)
-	if err != nil {
-		log.Printf("Invalid port number in MCP_PORT environment variable: %v, using default port 8080", err)
-		return DefaultPort
+	if t, ok := os.LookupEnv("TRANSPORT"); ok {
+		transport = t
 	}
-
-	// Validate port range
-	if port < 1 || port > 65535 {
-		log.Printf("Port %d out of valid range (1-65535), using default port", port)
-		return DefaultPort
+	if p, ok := os.LookupEnv("PORT"); ok {
+		if intValue, err := strconv.Atoi(p); err == nil {
+			port = intValue
+		}
 	}
-
-	return fmt.Sprintf(":%d", port)
 }

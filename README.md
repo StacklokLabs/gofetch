@@ -6,11 +6,8 @@
 [![Test][test-img]][test]
 [![Go Report Card][go-report-img]][go-report]
 [![License: Apache-2.0][license-img]][license]
-[![GitHub Downloads][github-downloads-img]][release]
-![Docker Pulls][docker-pulls]
 </div>
 
-<!-- <img src="docs/gofetch.png" alt="gofetch" height="300" style="display: inline-block; vertical-align: top; margin-right: 20px;"><span style="display: inline-block; vertical-align: top;"> -->
 
 An SSE Go implementation of the `gofetch` MCP server that retrieves web content.</span>
 
@@ -38,7 +35,7 @@ but has the following benefits:
   - Non-root user
   - Distroless / minimal image
   - Container signing with build provenance
-- Uses SSE transport instead of STDIO
+- Uses StreamableHTTP and SSE (deprecated) transport instead of STDIO
 - More test coverage
 
 ## Prerequisites
@@ -71,21 +68,20 @@ but has the following benefits:
 
 ### Running the server
 
-To run the server with the default kubeconfig:
+To run the server with the default StreamableHTTP transport:
 
 ```bash
-task run
+./build/gofetch
 ```
 
 The server will start and expose:
 
-- SSE endpoint: `http://localhost:8080/sse`
-- Message endpoint: `http://localhost:8080/message`
+- MCP endpoint: `http://localhost:8080/mcp`
 
 #### Command Line Options
 
-- `--addr`: Address to listen on (default: ":8080", can be set via MCP_PORT env
-  var)
+- `--transport`: Transport type: `sse` or `streamable-http` (default)
+- `--port`: Port number for HTTP-based transports (default: 8080)
 - `--user-agent`: Custom User-Agent string (default: "Mozilla/5.0 (compatible;
   MCPGoFetchBot/1.0)")
 - `--ignore-robots-txt`: Ignore robots.txt rules
@@ -95,49 +91,30 @@ The server will start and expose:
 
 ```bash
 # Basic server on port 8080
-./gofetch --addr :8080
+./build/gofetch --transport=streamable-http --port 8080
 
 # Custom port with user agent
-./gofetch --addr :3000 --user-agent "MyBot/1.0"
+./build/gofetch --port 8080 --user-agent "MyBot/1.0"
 
 # Ignore robots.txt on custom port
-./gofetch --addr :8080 --ignore-robots-txt
+./build/gofetch --port 8080 --ignore-robots-txt
 
 # Use proxy
-./gofetch --addr :8080 --proxy-url "http://proxy.example.com:8080"
+./build/gofetch --port 8080 --proxy-url "http://proxy.example.com:8080"
 
 # Use environment variable for port
-MCP_PORT=9090 ./gofetc
+PORT=9090 ./build/gofetch
 ```
 
-### Docker Usage
+### Using the Server
 
-```bash
-# Build Docker image
-docker build -t gofetch .
-
-# Run with default settings
-docker run -p 8080:8080 gofetch
-
-# Run with custom arguments
-docker run -p 9090:9090 gofetch --addr :9090
-```
-
-### Testing the Server
-
-```bash
-# Send MCP request
-curl -X POST http://localhost:8080/message \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
-
-# Test SSE connection
-curl -N http://localhost:8080/sse
-```
+For using the `gofetch` server, you can follow the usage guide for curl commands:
+- [SSE](./USAGE.md#sse)
+- [StreamableHTTP](./USAGE.md#streamable-http)
 
 ## MCP Tools
 
-The server provides a single tool called `gofetch` with the following parameters:
+The server provides a single tool called `fetch` with the following parameters:
 
 ### Tool: `fetch`
 
@@ -180,6 +157,7 @@ markdown.
 
 ### Running tests
 
+Requires [yardstick client](https://github.com/StacklokLabs/yardstick) to be installed for integration tests.
 ```bash
 task test
 ```
@@ -224,13 +202,13 @@ ToolHive's registry:
 thv client setup
 
 # Run the fetch server
-thv run gofetch --transport sse
+thv run fetch --transport streamable-http --target-port 8080
 
 # List running servers
 thv list
 
 # Get detailed information about the server
-thv registry info gofetch
+thv registry info fetch
 ```
 
 ### Advanced Usage with Custom Configuration
@@ -240,7 +218,7 @@ the container image directly:
 
 ```bash
 # Run the fetch server using the published container image
-thv run --name gofetch --transport sse --target-port 8080 ghcr.io/stackloklabs/gofetch/server:latest
+thv run --name fetch --transport streamable-http --target-port 8080 ghcr.io/stackloklabs/gofetch/server:latest
 ```
 
 This command:
@@ -252,7 +230,7 @@ This command:
 To use a specific version instead of the latest:
 
 ```bash
-thv run --name gofetch --transport sse --target-port 8080 ghcr.io/stackloklabs/gofetch/server:v0.0.1
+thv run --name fetch --transport sse --target-port 8080 ghcr.io/stackloklabs/gofetch/server:v0.0.1
 ```
 
 ### Managing the gofetch Server
@@ -270,14 +248,14 @@ To stop the gofetch server:
 
 ```bash
 # For custom named version
-thv stop gofetch
+thv stop fetch
 ```
 
 To remove the server instance completely:
 
 ```bash
 # For custom named version
-thv rm gofetch
+thv rm fetch
 ```
 
 ## Contributing
@@ -305,5 +283,3 @@ details.
 [go-report]: https://goreportcard.com/report/github.com/StacklokLabs/gofetch
 [license-img]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license]: https://opensource.org/licenses/Apache-2.0
-[github-downloads-img]: https://img.shields.io/github/downloads/StacklokLabs/gofetch/total.svg
-[docker-pulls]: https://img.shields.io/docker/pulls/stacklok/gofetch.svg

@@ -7,21 +7,29 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stackloklabs/gofetch/pkg/config"
 	"github.com/stackloklabs/gofetch/pkg/fetcher"
 	"github.com/stackloklabs/gofetch/pkg/processor"
 	"github.com/stackloklabs/gofetch/pkg/robots"
 )
 
+// FetchParams defines the input parameters for the fetch tool
+type FetchParams struct {
+	URL        string `json:"url" mcp:"URL to fetch"`
+	MaxLength  *int   `json:"max_length,omitempty" mcp:"Maximum number of characters to return"`
+	StartIndex *int   `json:"start_index,omitempty" mcp:"Start index for truncated content"`
+	Raw        bool   `json:"raw,omitempty" mcp:"Get the actual HTML content without simplification"`
+}
+
 // FetchServer represents the MCP server for fetching web content
 type FetchServer struct {
 	config    config.Config
 	fetcher   *fetcher.HTTPFetcher
-	mcpServer *server.MCPServer
+	mcpServer *mcp.Server
 }
 
 // NewFetchServer creates a new fetch server instance
@@ -45,8 +53,12 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 	contentProcessor := processor.NewContentProcessor()
 	httpFetcher := fetcher.NewHTTPFetcher(client, robotsChecker, contentProcessor, cfg.UserAgent)
 
-	// Create MCP server
-	mcpServer := server.NewMCPServer(config.ServerName, config.ServerVersion)
+	// Create MCP server with proper implementation details
+	// Capabilities are automatically generated based on registered tools/resources
+	mcpServer := mcp.NewServer(&mcp.Implementation{
+		Name:    config.ServerName,
+		Version: config.ServerVersion,
+	}, nil)
 
 	fs := &FetchServer{
 		config:    cfg,
@@ -62,95 +74,129 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 
 // setupTools registers the fetch tool with the MCP server
 func (fs *FetchServer) setupTools() {
-	fetchTool := mcp.NewTool("fetch",
-		mcp.WithDescription("Fetches a URL from the internet and optionally extracts its contents as markdown."),
-		mcp.WithString("url",
-			mcp.Required(),
-			mcp.Description("URL to fetch"),
-			mcp.Pattern("^https?://.*"),
-		),
-		mcp.WithNumber("max_length",
-			mcp.Description("Maximum number of characters to return."),
-		),
-		mcp.WithNumber("start_index",
-			mcp.Description("Start index for truncated content."),
-		),
-		mcp.WithBoolean("raw",
-			mcp.Description("Get the actual HTML content of the requested page, without simplification."),
-		),
-	)
+	fetchTool := &mcp.Tool{
+		Name:        "fetch",
+		Description: "Fetches a URL from the internet and optionally extracts its contents as markdown.",
+	}
 
-	fs.mcpServer.AddTool(fetchTool, fs.handleFetchTool)
+	mcp.AddTool(fs.mcpServer, fetchTool, fs.handleFetchTool)
 }
 
 // handleFetchTool processes fetch tool requests
-func (fs *FetchServer) handleFetchTool(_ context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	log.Printf("Tool call received: %s", request.Params.Name)
+func (fs *FetchServer) handleFetchTool(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[FetchParams]) (*mcp.CallToolResultFor[any], error) {
+	log.Printf("Tool call received: fetch")
 
-	// Parse request parameters
-	fetchReq, err := fs.parseFetchRequest(request)
-	if err != nil {
-		log.Printf("Tool call failed - %v", err)
-		return mcp.NewToolResultError(err.Error()), nil
+	// Convert to fetcher request
+	fetchReq := &fetcher.FetchRequest{
+		URL: params.Arguments.URL,
+		Raw: params.Arguments.Raw,
+	}
+
+	if params.Arguments.MaxLength != nil {
+		fetchReq.MaxLength = params.Arguments.MaxLength
+	}
+
+	if params.Arguments.StartIndex != nil {
+		fetchReq.StartIndex = params.Arguments.StartIndex
 	}
 
 	// Fetch the content
 	content, err := fs.fetcher.FetchURL(fetchReq)
 	if err != nil {
-		return mcp.NewToolResultError(err.Error()), nil
+		return nil, err
 	}
 
-	return mcp.NewToolResultText(content), nil
+	return &mcp.CallToolResultFor[any]{
+		Content: []mcp.Content{&mcp.TextContent{Text: content}},
+	}, nil
 }
 
-// parseFetchRequest extracts and validates parameters from the MCP request
-func (*FetchServer) parseFetchRequest(request mcp.CallToolRequest) (*fetcher.FetchRequest, error) {
-	// Extract URL parameter (required)
-	urlParam, err := request.RequireString("url")
-	if err != nil {
-		return nil, fmt.Errorf("URL is required")
-	}
-
-	// Extract optional parameters
-	maxLength := request.GetInt("max_length", 0)
-	startIndex := request.GetInt("start_index", 0)
-	raw := request.GetBool("raw", false)
-
-	fetchReq := &fetcher.FetchRequest{
-		URL: urlParam,
-		Raw: raw,
-	}
-
-	if maxLength > 0 {
-		fetchReq.MaxLength = &maxLength
-	}
-
-	if startIndex > 0 {
-		fetchReq.StartIndex = &startIndex
-	}
-
-	return fetchReq, nil
-}
-
-// Start starts the MCP server
+// Start starts the MCP server following the MCP specification
 func (fs *FetchServer) Start() error {
 	fs.logServerStartup()
 
-	sseServer := server.NewSSEServer(fs.mcpServer)
-	return sseServer.Start(fs.config.Address)
+	switch fs.config.Transport {
+	case config.TransportSSE:
+		// For SSE, we need to create an HTTP server that handles SSE connections
+		return fs.startSSEServer()
+
+	case config.TransportStreamableHTTP:
+		// For streamable HTTP, we need to create an HTTP server that handles streaming
+		return fs.startStreamableHTTPServer()
+
+	default:
+		return fmt.Errorf("unsupported transport type: %s", fs.config.Transport)
+	}
+}
+
+// startSSEServer starts the server with SSE transport
+func (fs *FetchServer) startSSEServer() error {
+	mux := http.NewServeMux()
+
+	// Create SSE handler according to MCP specification
+	sseHandler := mcp.NewSSEHandler(func(req *http.Request) *mcp.Server {
+		return fs.mcpServer
+	})
+
+	// Handle SSE endpoint
+	mux.Handle("/sse", sseHandler)
+
+	// Start HTTP server
+	server := &http.Server{
+		Addr:    ":" + strconv.Itoa(fs.config.Port),
+		Handler: mux,
+	}
+
+	log.Printf("Server listening on %d", fs.config.Port)
+	return server.ListenAndServe()
+}
+
+// startStreamableHTTPServer starts the server with streamable HTTP transport
+func (fs *FetchServer) startStreamableHTTPServer() error {
+	mux := http.NewServeMux()
+
+	// Create streamable HTTP handler according to MCP specification
+	streamableHandler := mcp.NewStreamableHTTPHandler(
+		func(req *http.Request) *mcp.Server {
+			return fs.mcpServer
+		},
+		&mcp.StreamableHTTPOptions{
+			// Configure any specific options here if needed
+		},
+	)
+
+	// Handle the message endpoint
+	mux.Handle("/mcp", streamableHandler)
+
+	// Start HTTP server
+	server := &http.Server{
+		Addr:    ":" + strconv.Itoa(fs.config.Port),
+		Handler: mux,
+	}
+
+	log.Printf("Server listening on %d", fs.config.Port)
+	return server.ListenAndServe()
 }
 
 // logServerStartup prints startup information
 func (fs *FetchServer) logServerStartup() {
 	log.Printf("=== Starting MCP gofetch Server ===")
-	log.Printf("Server address: %s", fs.config.Address)
+	log.Printf("Server port: %d", fs.config.Port)
+	log.Printf("Transport: %s", fs.config.Transport)
 	log.Printf("User agent: %s", fs.config.UserAgent)
 	log.Printf("Ignore robots.txt: %v", fs.config.IgnoreRobots)
 	if fs.config.ProxyURL != "" {
 		log.Printf("Using proxy: %s", fs.config.ProxyURL)
 	}
 	log.Printf("Available tools: fetch")
-	log.Printf("SSE endpoint: http://localhost%s/sse", fs.config.Address)
-	log.Printf("Message endpoint: http://localhost%s/message", fs.config.Address)
+
+	// Log endpoint based on transport
+	switch fs.config.Transport {
+	case config.TransportSSE:
+		log.Printf("SSE endpoint: http://localhost:%d/sse", fs.config.Port)
+	case config.TransportStreamableHTTP:
+		log.Printf("Message endpoint: http://localhost:%d/mcp", fs.config.Port)
+	}
+
 	log.Printf("=== Server starting ===")
 }
