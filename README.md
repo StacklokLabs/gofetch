@@ -103,7 +103,7 @@ The server will start and expose:
 ./build/gofetch --port 8080 --proxy-url "http://proxy.example.com:8080"
 
 # Use environment variable for port
-PORT=9090 ./build/gofetch
+MCP_PORT=9090 ./build/gofetch
 ```
 
 ### Using the Server

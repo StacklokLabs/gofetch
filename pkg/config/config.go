@@ -62,7 +62,7 @@ func parseConfig(config *Config) {
 	if t, ok := os.LookupEnv("TRANSPORT"); ok {
 		transport = t
 	}
-	if p, ok := os.LookupEnv("PORT"); ok {
+	if p, ok := os.LookupEnv("MCP_PORT"); ok {
 		if intValue, err := strconv.Atoi(p); err == nil {
 			port = intValue
 		}

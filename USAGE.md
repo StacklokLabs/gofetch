@@ -5,7 +5,7 @@ This document provides examples of how to interact with the GoFetch MCP server u
 ## SSE
 
 ```bash
-TRANSPORT=sse PORT=8080 ./gofetch
+TRANSPORT=sse MCP_PORT=8080 ./gofetch
 ```
 
 SSE transport uses query parameters for session management, not headers.
@@ -81,7 +81,7 @@ curl -X POST \
 ## Streamable-HTTP
 
 ```bash
-TRANSPORT=streamable-http PORT=8080 ./gofetch
+TRANSPORT=streamable-http MCP_PORT=8080 ./gofetch
 ```
 
 ### 1. Initialize Session and Get Session ID
