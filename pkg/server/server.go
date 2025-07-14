@@ -83,7 +83,11 @@ func (fs *FetchServer) setupTools() {
 }
 
 // handleFetchTool processes fetch tool requests
-func (fs *FetchServer) handleFetchTool(ctx context.Context, cc *mcp.ServerSession, params *mcp.CallToolParamsFor[FetchParams]) (*mcp.CallToolResultFor[any], error) {
+func (fs *FetchServer) handleFetchTool(
+	_ context.Context,
+	_ *mcp.ServerSession,
+	params *mcp.CallToolParamsFor[FetchParams],
+) (*mcp.CallToolResultFor[any], error) {
 	log.Printf("Tool call received: fetch")
 
 	// Convert to fetcher request
@@ -134,7 +138,7 @@ func (fs *FetchServer) startSSEServer() error {
 	mux := http.NewServeMux()
 
 	// Create SSE handler according to MCP specification
-	sseHandler := mcp.NewSSEHandler(func(req *http.Request) *mcp.Server {
+	sseHandler := mcp.NewSSEHandler(func(_ *http.Request) *mcp.Server {
 		return fs.mcpServer
 	})
 
@@ -143,8 +147,9 @@ func (fs *FetchServer) startSSEServer() error {
 
 	// Start HTTP server
 	server := &http.Server{
-		Addr:    ":" + strconv.Itoa(fs.config.Port),
-		Handler: mux,
+		Addr:              ":" + strconv.Itoa(fs.config.Port),
+		Handler:           mux,
+		ReadHeaderTimeout: 30 * time.Second,
 	}
 
 	log.Printf("Server listening on %d", fs.config.Port)
@@ -157,7 +162,7 @@ func (fs *FetchServer) startStreamableHTTPServer() error {
 
 	// Create streamable HTTP handler according to MCP specification
 	streamableHandler := mcp.NewStreamableHTTPHandler(
-		func(req *http.Request) *mcp.Server {
+		func(_ *http.Request) *mcp.Server {
 			return fs.mcpServer
 		},
 		&mcp.StreamableHTTPOptions{
@@ -170,8 +175,9 @@ func (fs *FetchServer) startStreamableHTTPServer() error {
 
 	// Start HTTP server
 	server := &http.Server{
-		Addr:    ":" + strconv.Itoa(fs.config.Port),
-		Handler: mux,
+		Addr:              ":" + strconv.Itoa(fs.config.Port),
+		Handler:           mux,
+		ReadHeaderTimeout: 30 * time.Second,
 	}
 
 	log.Printf("Server listening on %d", fs.config.Port)

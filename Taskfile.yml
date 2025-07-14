@@ -37,6 +37,10 @@ tasks:
     desc: Run tests
     cmds:
       - go test -v ./...
+
+  test-integration:
+    desc: Run integration tests
+    cmds:
       - ./test/integration-test.sh
 
   clean:

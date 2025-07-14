@@ -93,7 +93,7 @@ func TestHandleFetchTool(t *testing.T) {
 	server := NewFetchServer(cfg)
 
 	// Create a test server to serve content
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("<html><body><h1>Test Content</h1></body></html>"))
@@ -132,7 +132,7 @@ func TestHandleFetchToolWithParams(t *testing.T) {
 	server := NewFetchServer(cfg)
 
 	// Create a test server
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("<html><body><p>Long content here</p></body></html>"))
@@ -210,7 +210,7 @@ func TestStartUnsupportedTransport(t *testing.T) {
 	}
 }
 
-func TestLogServerStartup(t *testing.T) {
+func TestLogServerStartup(_ *testing.T) {
 	cfg := config.Config{
 		Port:         9090,
 		UserAgent:    "test-agent",
@@ -226,7 +226,7 @@ func TestLogServerStartup(t *testing.T) {
 	server.logServerStartup()
 }
 
-func TestLogServerStartupStreamableHTTP(t *testing.T) {
+func TestLogServerStartupStreamableHTTP(_ *testing.T) {
 	cfg := config.Config{
 		Port:      8080,
 		Transport: config.TransportStreamableHTTP,
@@ -287,7 +287,7 @@ func BenchmarkHandleFetchTool(b *testing.B) {
 	server := NewFetchServer(cfg)
 
 	// Create a test server
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("<html><body><h1>Benchmark Content</h1></body></html>"))

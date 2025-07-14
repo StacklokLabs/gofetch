@@ -9,9 +9,9 @@ import (
 
 // Constants
 const (
-	ServerName       = "fetch-server"
-	ServerVersion    = "1.0.0"
-	DefaultUA        = "Mozilla/5.0 (compatible; MCPFetchBot/1.0)"
+	ServerName    = "fetch-server"
+	ServerVersion = "1.0.0"
+	DefaultUA     = "Mozilla/5.0 (compatible; MCPFetchBot/1.0)"
 )
 
 // Transport types
