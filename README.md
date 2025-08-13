@@ -74,9 +74,14 @@ To run the server with the default StreamableHTTP transport:
 ./build/gofetch
 ```
 
-The server will start and expose:
+The server will start and expose endpoints as mandated by the MCP specification:
 
-- MCP endpoint: `http://localhost:8080/mcp`
+**Streamable HTTP Transport (default):**
+- MCP endpoint: `http://localhost:8080/mcp` (for streaming responses and commands)
+
+**SSE Transport:**
+- SSE endpoint: `http://localhost:8080/sse`
+- Messages endpoint: `http://localhost:8080/messages`
 
 #### Command Line Options
 

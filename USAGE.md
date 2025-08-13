@@ -8,6 +8,10 @@ This document provides examples of how to interact with the GoFetch MCP server u
 TRANSPORT=sse MCP_PORT=8080 ./gofetch
 ```
 
+### Available Endpoints:
+- **SSE endpoint**: `GET /sse` - for receiving server-to-client messages
+- **Messages endpoint**: `POST /messages` - for sending client-to-server commands
+
 SSE transport uses query parameters for session management, not headers.
 
 ### 1. Initialize Session (GET request to establish session)
@@ -23,13 +27,13 @@ This will establish a session and return a URL with a session ID like:
 data: /sse?sessionid=TE2NFYZFIWX2E6RIUJX7TNO7H5
 ```
 
-### 2. Send Initialize Message (POST to session endpoint)
+### 2. Send Initialize Message (POST to messages endpoint)
 ```bash
-# Use the session ID from step 1 in the URL
+# Use the session ID from step 1 and send to the messages endpoint
 curl -X POST \
      -H "Content-Type: application/json" \
      -H "Mcp-Protocol-Version: 2025-06-18" \
-     "http://localhost:8080/sse?sessionid=<sessionId>" \
+     "http://localhost:8080/messages?sessionid=<sessionId>" \
      -d '{
        "jsonrpc": "2.0",
        "id": 1,
@@ -50,7 +54,7 @@ curl -X POST \
 curl -X POST \
      -H "Content-Type: application/json" \
      -H "Mcp-Protocol-Version: 2025-06-18" \
-     "http://localhost:8080/sse?sessionid=<sessionId>" \
+     "http://localhost:8080/messages?sessionid=<sessionId>" \
      -d '{
        "jsonrpc": "2.0",
        "id": 2,
@@ -63,7 +67,7 @@ curl -X POST \
 curl -X POST \
      -H "Content-Type: application/json" \
      -H "Mcp-Protocol-Version: 2025-06-18" \
-     "http://localhost:8080/sse?sessionid=<sessionId>" \
+     "http://localhost:8080/messages?sessionid=<sessionId>" \
      -d '{
        "jsonrpc": "2.0",
        "id": 3,
@@ -83,6 +87,9 @@ curl -X POST \
 ```bash
 TRANSPORT=streamable-http MCP_PORT=8080 ./gofetch
 ```
+
+### Available Endpoints:
+- **MCP endpoint**: `GET/POST /mcp` - for streaming server-to-client communication and client-to-server commands
 
 ### 1. Initialize Session and Get Session ID
 
@@ -174,8 +181,7 @@ The fetch tool accepts the following parameters:
 
 | Feature | Streamable HTTP (Modern) | HTTP+SSE (Legacy) |
 |---------|-------------------------|-------------------|
-| Endpoints | Single `/mcp` for all operations | Two-endpoint process: `GET /mcp` or `GET /sse` to establish session, `POST /messages` or `POST /sse?sessionid=xxx` to send messages |
-| Client-to-Server | `POST /mcp` | `POST /messages?sessionid=xxx` |
-| Server-to-Client | Same POST response (streamed) | `GET /mcp` (SSE stream) |
+| Endpoint | `GET/POST /mcp` for streaming responses and commands | `GET /sse` for streaming responses |
+| Command Endpoint | Same as above | `POST /messages` for client commands |
 | Session Identification | Uses **HTTP headers** for session management (`Mcp-Session-Id` header) | Uses **query parameters** in URL for session management (`?sessionid=...`) |
 | Session Termination | `DELETE /mcp` | Connection close |

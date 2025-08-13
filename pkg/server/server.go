@@ -53,23 +53,57 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 	contentProcessor := processor.NewContentProcessor()
 	httpFetcher := fetcher.NewHTTPFetcher(client, robotsChecker, contentProcessor, cfg.UserAgent)
 
+	fs := &FetchServer{
+		config:  cfg,
+		fetcher: httpFetcher,
+	}
+
 	// Create MCP server with proper implementation details
 	// Capabilities are automatically generated based on registered tools/resources
 	mcpServer := mcp.NewServer(&mcp.Implementation{
 		Name:    config.ServerName,
 		Version: config.ServerVersion,
-	}, nil)
+	}, &mcp.ServerOptions{
+		InitializedHandler: fs.handleInitialized,
+	})
 
-	fs := &FetchServer{
-		config:    cfg,
-		fetcher:   httpFetcher,
-		mcpServer: mcpServer,
-	}
+	fs.mcpServer = mcpServer
 
 	// Setup tools
 	fs.setupTools()
 
 	return fs
+}
+
+// handleInitialized sends an endpoint event to the client after initialization
+func (fs *FetchServer) handleInitialized(ctx context.Context, session *mcp.ServerSession, _ *mcp.InitializedParams) {
+	// Build the endpoint URI based on the current server configuration
+	var endpointURI string
+	switch fs.config.Transport {
+	case config.TransportSSE:
+		endpointURI = fmt.Sprintf("http://localhost:%d/messages", fs.config.Port)
+	case config.TransportStreamableHTTP:
+		endpointURI = fmt.Sprintf("http://localhost:%d/mcp", fs.config.Port)
+	default:
+		endpointURI = fmt.Sprintf("http://localhost:%d/messages", fs.config.Port)
+	}
+
+	// Send endpoint event as a log message with structured data
+	err := session.Log(ctx, &mcp.LoggingMessageParams{
+		Level: "info",
+		Data: map[string]interface{}{
+			"type":         "endpoint_event",
+			"message":      "Client must use this endpoint for sending messages",
+			"endpoint_uri": endpointURI,
+		},
+		Logger: "gofetch-server",
+	})
+
+	if err != nil {
+		log.Printf("Failed to send endpoint event: %v", err)
+	} else {
+		log.Printf("Sent endpoint event to client %s: %s", session.ID(), endpointURI)
+	}
 }
 
 // setupTools registers the fetch tool with the MCP server
@@ -145,6 +179,9 @@ func (fs *FetchServer) startSSEServer() error {
 	// Handle SSE endpoint
 	mux.Handle("/sse", sseHandler)
 
+	// HTTP POST endpoint for client-to-server communication
+	mux.Handle("/messages", sseHandler)
+
 	// Start HTTP server
 	server := &http.Server{
 		Addr:              ":" + strconv.Itoa(fs.config.Port),
@@ -199,9 +236,10 @@ func (fs *FetchServer) logServerStartup() {
 	// Log endpoint based on transport
 	switch fs.config.Transport {
 	case config.TransportSSE:
-		log.Printf("SSE endpoint: http://localhost:%d/sse", fs.config.Port)
+		log.Printf("SSE endpoint (server-to-client): http://localhost:%d/sse", fs.config.Port)
+		log.Printf("Messages endpoint (client-to-server): http://localhost:%d/messages", fs.config.Port)
 	case config.TransportStreamableHTTP:
-		log.Printf("Message endpoint: http://localhost:%d/mcp", fs.config.Port)
+		log.Printf("MCP endpoint (streaming and commands): http://localhost:%d/mcp", fs.config.Port)
 	}
 
 	log.Printf("=== Server starting ===")

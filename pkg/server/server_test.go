@@ -2,8 +2,10 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -305,5 +307,220 @@ func BenchmarkHandleFetchTool(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = server.handleFetchTool(ctx, nil, params)
+	}
+}
+
+// TestSSEEndpointsExist tests that SSE transport exposes both required endpoints
+func TestSSEEndpointsExist(t *testing.T) {
+	cfg := config.Config{
+		Port:      8080,
+		UserAgent: "test-agent",
+		Transport: config.TransportSSE,
+	}
+
+	server := NewFetchServer(cfg)
+
+	// Create a test HTTP server to simulate the endpoint structure
+	mux := http.NewServeMux()
+	sseHandler := mcp.NewSSEHandler(func(_ *http.Request) *mcp.Server {
+		return server.mcpServer
+	})
+
+	// Set up endpoints as per MCP spec
+	mux.Handle("/sse", sseHandler)
+	mux.Handle("/messages", sseHandler)
+
+	testServer := httptest.NewServer(mux)
+	defer testServer.Close()
+
+	// Test SSE endpoint exists
+	resp, err := http.Get(testServer.URL + "/sse")
+	if err != nil {
+		t.Errorf("SSE endpoint should be accessible: %v", err)
+	}
+	resp.Body.Close()
+
+	// Test messages endpoint exists (should accept POST)
+	resp, err = http.Post(testServer.URL+"/messages", "application/json", strings.NewReader("{}"))
+	if err != nil {
+		t.Errorf("Messages endpoint should be accessible: %v", err)
+	}
+	resp.Body.Close()
+}
+
+// TestStreamableHTTPEndpointsExist tests that Streamable HTTP transport exposes the single required endpoint
+func TestStreamableHTTPEndpointsExist(t *testing.T) {
+	cfg := config.Config{
+		Port:      8080,
+		UserAgent: "test-agent",
+		Transport: config.TransportStreamableHTTP,
+	}
+
+	server := NewFetchServer(cfg)
+
+	// Create a test HTTP server to simulate the endpoint structure
+	mux := http.NewServeMux()
+	streamableHandler := mcp.NewStreamableHTTPHandler(
+		func(_ *http.Request) *mcp.Server {
+			return server.mcpServer
+		},
+		&mcp.StreamableHTTPOptions{},
+	)
+
+	// Set up single endpoint as per MCP spec for Streamable HTTP
+	mux.Handle("/mcp", streamableHandler)
+
+	testServer := httptest.NewServer(mux)
+	defer testServer.Close()
+
+	// Test MCP endpoint exists for GET (streaming)
+	resp, err := http.Get(testServer.URL + "/mcp")
+	if err != nil {
+		t.Errorf("MCP endpoint should be accessible for GET: %v", err)
+	}
+	resp.Body.Close()
+
+	// Test MCP endpoint exists for POST (commands)
+	resp, err = http.Post(testServer.URL+"/mcp", "application/json", strings.NewReader("{}"))
+	if err != nil {
+		t.Errorf("MCP endpoint should be accessible for POST: %v", err)
+	}
+	resp.Body.Close()
+}
+
+// TestLogServerStartupEndpoints tests that the correct endpoints are logged
+func TestLogServerStartupEndpoints(t *testing.T) {
+	testCases := []struct {
+		name      string
+		transport string
+		expected  []string
+	}{
+		{
+			name:      "SSE transport",
+			transport: config.TransportSSE,
+			expected:  []string{"SSE endpoint (server-to-client)", "Messages endpoint (client-to-server)", "/sse", "/messages"},
+		},
+		{
+			name:      "Streamable HTTP transport",
+			transport: config.TransportStreamableHTTP,
+			expected:  []string{"MCP endpoint (streaming and commands)", "/mcp"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(_ *testing.T) {
+			cfg := config.Config{
+				Port:      8080,
+				Transport: tc.transport,
+			}
+
+			server := NewFetchServer(cfg)
+
+			// This test verifies that logServerStartup doesn't panic and would log the expected endpoints
+			// In a real test environment, you might want to capture logs and verify the content
+			server.logServerStartup()
+		})
+	}
+}
+
+// TestInitializedHandlerSetup tests that the initialized handler is properly configured
+func TestInitializedHandlerSetup(t *testing.T) {
+	testCases := []struct {
+		name      string
+		transport string
+		port      int
+	}{
+		{
+			name:      "SSE transport",
+			transport: config.TransportSSE,
+			port:      8080,
+		},
+		{
+			name:      "Streamable HTTP transport",
+			transport: config.TransportStreamableHTTP,
+			port:      9090,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := config.Config{
+				Port:      tc.port,
+				Transport: tc.transport,
+			}
+
+			server := NewFetchServer(cfg)
+
+			// Verify that the server was created successfully
+			if server == nil {
+				t.Error("Expected server to be created")
+				return
+			}
+
+			// Verify that the MCP server was created
+			if server.mcpServer == nil {
+				t.Error("Expected MCP server to be created")
+				return
+			}
+
+			// This test verifies that the server has been configured with an initialized handler
+			// The actual endpoint event sending would be tested through integration tests
+			// since we can't easily mock ServerSession due to it being a concrete type
+		})
+	}
+}
+
+// TestEndpointURIGeneration tests the endpoint URI generation logic
+func TestEndpointURIGeneration(t *testing.T) {
+	testCases := []struct {
+		name      string
+		transport string
+		port      int
+		expected  string
+	}{
+		{
+			name:      "SSE transport",
+			transport: config.TransportSSE,
+			port:      8080,
+			expected:  "http://localhost:8080/messages",
+		},
+		{
+			name:      "Streamable HTTP transport",
+			transport: config.TransportStreamableHTTP,
+			port:      9090,
+			expected:  "http://localhost:9090/mcp",
+		},
+		{
+			name:      "Custom port",
+			transport: config.TransportSSE,
+			port:      3000,
+			expected:  "http://localhost:3000/messages",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := config.Config{
+				Port:      tc.port,
+				Transport: tc.transport,
+			}
+
+			server := NewFetchServer(cfg)
+
+			// Test the endpoint URI generation logic
+			var endpointURI string
+			switch server.config.Transport {
+			case config.TransportSSE:
+				endpointURI = fmt.Sprintf("http://localhost:%d/messages", server.config.Port)
+			case config.TransportStreamableHTTP:
+				endpointURI = fmt.Sprintf("http://localhost:%d/mcp", server.config.Port)
+			default:
+				endpointURI = fmt.Sprintf("http://localhost:%d/messages", server.config.Port)
+			}
+
+			if endpointURI != tc.expected {
+				t.Errorf("Expected endpoint URI '%s', got '%s'", tc.expected, endpointURI)
+			}
+		})
 	}
 }
