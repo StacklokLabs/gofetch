@@ -42,6 +42,7 @@ tasks:
     desc: Run integration tests
     cmds:
       - ./test/integration-test.sh
+      - ./test/integration-endpoints.sh
 
   clean:
     desc: Clean the build directory

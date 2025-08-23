@@ -29,6 +29,12 @@ fi
 # Get the image name from ko build output
 IMAGE_NAME="ghcr.io/stackloklabs/gofetch/server:latest"
 
+cleanup() {
+    docker rm -f gofetch-sse-test > /dev/null 2>&1 || true
+    docker rm -f gofetch-http-test > /dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
 ###################################################################
 ################## START - SSE TRANSPORT TESTING ##################
 ###################################################################
