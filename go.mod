@@ -2,7 +2,7 @@ module github.com/stackloklabs/gofetch
 
 go 1.23.2
 
-toolchain go1.24.5
+toolchain go1.25.1
 
 require (
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
