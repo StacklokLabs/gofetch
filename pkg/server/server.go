@@ -76,7 +76,7 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 }
 
 // handleInitialized sends an endpoint event to the client after initialization
-func (fs *FetchServer) handleInitialized(ctx context.Context, session *mcp.ServerSession, _ *mcp.InitializedParams) {
+func (fs *FetchServer) handleInitialized(ctx context.Context, initRequest *mcp.InitializedRequest) {
 	// Build the endpoint URI based on the current server configuration
 	var endpointURI string
 	switch fs.config.Transport {
@@ -89,7 +89,7 @@ func (fs *FetchServer) handleInitialized(ctx context.Context, session *mcp.Serve
 	}
 
 	// Send endpoint event as a log message with structured data
-	err := session.Log(ctx, &mcp.LoggingMessageParams{
+	err := initRequest.Session.Log(ctx, &mcp.LoggingMessageParams{
 		Level: "info",
 		Data: map[string]interface{}{
 			"type":         "endpoint_event",
@@ -102,7 +102,7 @@ func (fs *FetchServer) handleInitialized(ctx context.Context, session *mcp.Serve
 	if err != nil {
 		log.Printf("Failed to send endpoint event: %v", err)
 	} else {
-		log.Printf("Sent endpoint event to client %s: %s", session.ID(), endpointURI)
+		log.Printf("Sent endpoint event to client %s: %s", initRequest.Session.ID(), endpointURI)
 	}
 }
 
@@ -119,34 +119,34 @@ func (fs *FetchServer) setupTools() {
 // handleFetchTool processes fetch tool requests
 func (fs *FetchServer) handleFetchTool(
 	_ context.Context,
-	_ *mcp.ServerSession,
-	params *mcp.CallToolParamsFor[FetchParams],
-) (*mcp.CallToolResultFor[any], error) {
+	_ *mcp.CallToolRequest,
+	params FetchParams,
+) (*mcp.CallToolResult, any, error) {
 	log.Printf("Tool call received: fetch")
 
 	// Convert to fetcher request
 	fetchReq := &fetcher.FetchRequest{
-		URL: params.Arguments.URL,
-		Raw: params.Arguments.Raw,
+		URL: params.URL,
+		Raw: params.Raw,
 	}
 
-	if params.Arguments.MaxLength != nil {
-		fetchReq.MaxLength = params.Arguments.MaxLength
+	if params.MaxLength != nil {
+		fetchReq.MaxLength = params.MaxLength
 	}
 
-	if params.Arguments.StartIndex != nil {
-		fetchReq.StartIndex = params.Arguments.StartIndex
+	if params.StartIndex != nil {
+		fetchReq.StartIndex = params.StartIndex
 	}
 
 	// Fetch the content
 	content, err := fs.fetcher.FetchURL(fetchReq)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &mcp.CallToolResultFor[any]{
+	return &mcp.CallToolResult{
 		Content: []mcp.Content{&mcp.TextContent{Text: content}},
-	}, nil
+	}, nil, nil
 }
 
 // Start starts the MCP server following the MCP specification

@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stackloklabs/gofetch/pkg/config"
 )
 
@@ -101,15 +100,12 @@ func TestHandleFetchTool(t *testing.T) {
 	defer testServer.Close()
 
 	ctx := context.Background()
-	params := &mcp.CallToolParamsFor[FetchParams]{
-		Name: "fetch",
-		Arguments: FetchParams{
-			URL: testServer.URL,
-			Raw: false,
-		},
+	params := FetchParams{
+		URL: testServer.URL,
+		Raw: false,
 	}
 
-	result, err := server.handleFetchTool(ctx, nil, params)
+	result, _, err := server.handleFetchTool(ctx, nil, params)
 
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
@@ -143,17 +139,14 @@ func TestHandleFetchToolWithParams(t *testing.T) {
 	startIndex := 0
 
 	ctx := context.Background()
-	params := &mcp.CallToolParamsFor[FetchParams]{
-		Name: "fetch",
-		Arguments: FetchParams{
-			URL:        testServer.URL,
-			MaxLength:  &maxLength,
-			StartIndex: &startIndex,
-			Raw:        true,
-		},
+	params := FetchParams{
+		URL:        testServer.URL,
+		MaxLength:  &maxLength,
+		StartIndex: &startIndex,
+		Raw:        true,
 	}
 
-	result, err := server.handleFetchTool(ctx, nil, params)
+	result, _, err := server.handleFetchTool(ctx, nil, params)
 
 	if err != nil {
 		t.Errorf("expected no error, got %v", err)
@@ -176,14 +169,11 @@ func TestHandleFetchToolError(t *testing.T) {
 	server := NewFetchServer(cfg)
 
 	ctx := context.Background()
-	params := &mcp.CallToolParamsFor[FetchParams]{
-		Name: "fetch",
-		Arguments: FetchParams{
-			URL: "http://invalid-url-that-does-not-exist.invalid",
-		},
+	params := FetchParams{
+		URL: "http://invalid-url-that-does-not-exist.invalid",
 	}
 
-	result, err := server.handleFetchTool(ctx, nil, params)
+	result, _, err := server.handleFetchTool(ctx, nil, params)
 
 	if err == nil {
 		t.Error("expected error for invalid URL")
@@ -295,15 +285,12 @@ func BenchmarkHandleFetchTool(b *testing.B) {
 	defer testServer.Close()
 
 	ctx := context.Background()
-	params := &mcp.CallToolParamsFor[FetchParams]{
-		Name: "fetch",
-		Arguments: FetchParams{
-			URL: testServer.URL,
-		},
+	params := FetchParams{
+		URL: testServer.URL,
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = server.handleFetchTool(ctx, nil, params)
+		_, _, _ = server.handleFetchTool(ctx, nil, params)
 	}
 }
