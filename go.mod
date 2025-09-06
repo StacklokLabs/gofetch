@@ -8,7 +8,7 @@ require (
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.4.0
 	github.com/go-shiori/go-readability v0.0.0-20250217085726-9f5bf5ca7612
-	github.com/modelcontextprotocol/go-sdk v0.3.1
+	github.com/modelcontextprotocol/go-sdk v0.4.0
 	golang.org/x/net v0.43.0
 )
 
