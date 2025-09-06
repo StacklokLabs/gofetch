@@ -10,9 +10,13 @@ import (
 	"strconv"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stackloklabs/gofetch/pkg/config"
 	"github.com/stackloklabs/gofetch/pkg/fetcher"
+	"github.com/stackloklabs/gofetch/pkg/observability"
 	"github.com/stackloklabs/gofetch/pkg/processor"
 	"github.com/stackloklabs/gofetch/pkg/robots"
 )
@@ -27,23 +31,66 @@ type FetchParams struct {
 
 // FetchServer represents the MCP server for fetching web content
 type FetchServer struct {
-	config    config.Config
-	fetcher   *fetcher.HTTPFetcher
-	mcpServer *mcp.Server
+	config      config.Config
+	fetcher     *fetcher.HTTPFetcher
+	mcpServer   *mcp.Server
+	telemetry   *observability.Telemetry
+	metrics     *observability.Metrics
+	traceHelper *observability.TraceHelper
 }
 
 // NewFetchServer creates a new fetch server instance
 func NewFetchServer(cfg config.Config) *FetchServer {
+	// Initialize observability
+	var telemetry *observability.Telemetry
+	var metrics *observability.Metrics
+	var traceHelper *observability.TraceHelper
+	
+	if cfg.EnableOTelMetrics || cfg.EnableOTelTracing || cfg.EnablePrometheus {
+		ctx := context.Background()
+		obsConfig := observability.NewObservabilityConfig(cfg)
+		
+		var err error
+		telemetry, err = observability.Setup(ctx, obsConfig)
+		if err != nil {
+			log.Printf("Failed to setup observability: %v", err)
+		} else {
+			// Initialize metrics and tracing helpers
+			if telemetry.MeterProvider != nil {
+				metrics, err = observability.NewMetrics(telemetry.MeterProvider, obsConfig.ServiceName)
+				if err != nil {
+					log.Printf("Failed to initialize metrics: %v", err)
+				}
+			}
+			
+			if telemetry.TracerProvider != nil {
+				traceHelper = observability.NewTraceHelper(obsConfig.ServiceName)
+			}
+		}
+	}
+
 	// Create HTTP client with timeout
 	client := &http.Client{
 		Timeout: 30 * time.Second,
+	}
+	
+	// Add OpenTelemetry HTTP instrumentation if tracing is enabled
+	if traceHelper != nil {
+		client.Transport = otelhttp.NewTransport(client.Transport)
 	}
 
 	// Configure proxy if provided
 	if cfg.ProxyURL != "" {
 		if proxyURLParsed, err := url.Parse(cfg.ProxyURL); err == nil {
-			client.Transport = &http.Transport{
-				Proxy: http.ProxyURL(proxyURLParsed),
+			if traceHelper != nil {
+				// Wrap the proxy transport with OpenTelemetry
+				client.Transport = otelhttp.NewTransport(&http.Transport{
+					Proxy: http.ProxyURL(proxyURLParsed),
+				})
+			} else {
+				client.Transport = &http.Transport{
+					Proxy: http.ProxyURL(proxyURLParsed),
+				}
 			}
 		}
 	}
@@ -54,8 +101,11 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 	httpFetcher := fetcher.NewHTTPFetcher(client, robotsChecker, contentProcessor, cfg.UserAgent)
 
 	fs := &FetchServer{
-		config:  cfg,
-		fetcher: httpFetcher,
+		config:      cfg,
+		fetcher:     httpFetcher,
+		telemetry:   telemetry,
+		metrics:     metrics,
+		traceHelper: traceHelper,
 	}
 
 	// Create MCP server with proper implementation details
@@ -118,11 +168,21 @@ func (fs *FetchServer) setupTools() {
 
 // handleFetchTool processes fetch tool requests
 func (fs *FetchServer) handleFetchTool(
-	_ context.Context,
+	ctx context.Context,
 	_ *mcp.CallToolRequest,
 	params FetchParams,
 ) (*mcp.CallToolResult, any, error) {
 	log.Printf("Tool call received: fetch")
+
+	// Start tracing span if enabled
+	if fs.traceHelper != nil {
+		var span trace.Span
+		ctx, span = fs.traceHelper.StartFetchSpan(ctx, params.URL)
+		defer span.End()
+	}
+
+	// Record start time for metrics
+	startTime := time.Now()
 
 	// Convert to fetcher request
 	fetchReq := &fetcher.FetchRequest{
@@ -140,6 +200,17 @@ func (fs *FetchServer) handleFetchTool(
 
 	// Fetch the content
 	content, err := fs.fetcher.FetchURL(fetchReq)
+	duration := time.Since(startTime)
+
+	// Record metrics if enabled
+	if fs.metrics != nil {
+		result := "success"
+		if err != nil {
+			result = "error"
+		}
+		fs.metrics.RecordFetchOperation(ctx, params.URL, result, duration)
+	}
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -177,10 +248,21 @@ func (fs *FetchServer) startSSEServer() error {
 	})
 
 	// Handle SSE endpoint
-	mux.Handle("/sse", sseHandler)
-
-	// HTTP POST endpoint for client-to-server communication
-	mux.Handle("/messages", sseHandler)
+	if fs.traceHelper != nil {
+		mux.Handle("/sse", otelhttp.NewHandler(sseHandler, "sse"))
+		// HTTP POST endpoint for client-to-server communication
+		mux.Handle("/messages", otelhttp.NewHandler(sseHandler, "messages"))
+	} else {
+		mux.Handle("/sse", sseHandler)
+		// HTTP POST endpoint for client-to-server communication
+		mux.Handle("/messages", sseHandler)
+	}
+	
+	// Add Prometheus metrics endpoint if enabled
+	if fs.config.EnablePrometheus && fs.telemetry != nil {
+		mux.Handle("/metrics", fs.telemetry.PrometheusHandler())
+		log.Printf("Prometheus metrics endpoint enabled at /metrics")
+	}
 
 	// Start HTTP server
 	server := &http.Server{
@@ -208,7 +290,17 @@ func (fs *FetchServer) startStreamableHTTPServer() error {
 	)
 
 	// Handle the message endpoint
-	mux.Handle("/mcp", streamableHandler)
+	if fs.traceHelper != nil {
+		mux.Handle("/mcp", otelhttp.NewHandler(streamableHandler, "mcp"))
+	} else {
+		mux.Handle("/mcp", streamableHandler)
+	}
+	
+	// Add Prometheus metrics endpoint if enabled
+	if fs.config.EnablePrometheus && fs.telemetry != nil {
+		mux.Handle("/metrics", fs.telemetry.PrometheusHandler())
+		log.Printf("Prometheus metrics endpoint enabled at /metrics")
+	}
 
 	// Start HTTP server
 	server := &http.Server{
@@ -242,5 +334,25 @@ func (fs *FetchServer) logServerStartup() {
 		log.Printf("MCP endpoint (streaming and commands): http://localhost:%d/mcp", fs.config.Port)
 	}
 
+	// Log observability features
+	if fs.config.EnableOTelMetrics {
+		log.Printf("OpenTelemetry metrics enabled")
+	}
+	if fs.config.EnableOTelTracing {
+		log.Printf("OpenTelemetry tracing enabled")
+	}
+	if fs.config.EnablePrometheus {
+		log.Printf("Prometheus metrics endpoint: http://localhost:%d/metrics", fs.config.Port)
+	}
+
 	log.Printf("=== Server starting ===")
+}
+
+// Shutdown gracefully shuts down the server and observability components
+func (fs *FetchServer) Shutdown(ctx context.Context) error {
+	if fs.telemetry != nil {
+		log.Printf("Shutting down observability components...")
+		return fs.telemetry.Shutdown(ctx)
+	}
+	return nil
 }

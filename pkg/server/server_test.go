@@ -37,6 +37,17 @@ func TestNewFetchServer(t *testing.T) {
 	if server.mcpServer == nil {
 		t.Error("expected MCP server to be initialized")
 	}
+	
+	// Test that observability is disabled by default
+	if server.telemetry != nil {
+		t.Error("expected telemetry to be nil when observability is disabled")
+	}
+	if server.metrics != nil {
+		t.Error("expected metrics to be nil when observability is disabled")
+	}
+	if server.traceHelper != nil {
+		t.Error("expected traceHelper to be nil when observability is disabled")
+	}
 }
 
 func TestNewFetchServerWithProxy(t *testing.T) {
@@ -264,6 +275,94 @@ func BenchmarkNewFetchServer(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = NewFetchServer(cfg)
+	}
+}
+
+func TestNewFetchServerWithObservability(t *testing.T) {
+	cfg := config.Config{
+		Port:              8080,
+		UserAgent:         "test-agent",
+		Transport:         config.TransportSSE,
+		EnablePrometheus:  true,
+		OTelServiceName:   "test-service",
+		OTelServiceVersion: "1.0.0",
+	}
+
+	server := NewFetchServer(cfg)
+
+	if server == nil {
+		t.Fatal("expected server to be created")
+	}
+	
+	// Test that observability components are initialized
+	if server.telemetry == nil {
+		t.Error("expected telemetry to be initialized when Prometheus is enabled")
+	}
+	if server.metrics == nil {
+		t.Error("expected metrics to be initialized when Prometheus is enabled")
+	}
+	// traceHelper should be nil since tracing is not enabled
+	if server.traceHelper != nil {
+		t.Error("expected traceHelper to be nil when tracing is disabled")
+	}
+}
+
+func TestNewFetchServerWithTracing(t *testing.T) {
+	cfg := config.Config{
+		Port:              8080,
+		UserAgent:         "test-agent",
+		Transport:         config.TransportSSE,
+		EnableOTelTracing: true,
+		OTelServiceName:   "test-service",
+		OTelServiceVersion: "1.0.0",
+		OTelEndpoint:      "http://localhost:4318/v1/traces",
+	}
+
+	server := NewFetchServer(cfg)
+
+	if server == nil {
+		t.Fatal("expected server to be created")
+	}
+	
+	// Test that tracing components are initialized
+	if server.telemetry == nil {
+		t.Error("expected telemetry to be initialized when tracing is enabled")
+	}
+	if server.traceHelper == nil {
+		t.Error("expected traceHelper to be initialized when tracing is enabled")
+	}
+}
+
+func TestServerShutdown(t *testing.T) {
+	cfg := config.Config{
+		Port:             8080,
+		Transport:        config.TransportSSE,
+		EnablePrometheus: true,
+	}
+
+	server := NewFetchServer(cfg)
+	ctx := context.Background()
+
+	// Test shutdown (should not panic)
+	err := server.Shutdown(ctx)
+	if err != nil {
+		t.Errorf("expected no error on shutdown, got %v", err)
+	}
+}
+
+func TestServerShutdownWithoutObservability(t *testing.T) {
+	cfg := config.Config{
+		Port:      8080,
+		Transport: config.TransportSSE,
+	}
+
+	server := NewFetchServer(cfg)
+	ctx := context.Background()
+
+	// Test shutdown without observability (should not panic)
+	err := server.Shutdown(ctx)
+	if err != nil {
+		t.Errorf("expected no error on shutdown, got %v", err)
 	}
 }
 
