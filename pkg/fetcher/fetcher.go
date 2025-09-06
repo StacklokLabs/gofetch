@@ -2,12 +2,15 @@
 package fetcher
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/stackloklabs/gofetch/pkg/observability"
 	"github.com/stackloklabs/gofetch/pkg/processor"
 	"github.com/stackloklabs/gofetch/pkg/robots"
 )
@@ -18,6 +21,7 @@ type HTTPFetcher struct {
 	robotsChecker *robots.Checker
 	processor     *processor.ContentProcessor
 	userAgent     string
+	metrics       *observability.Metrics
 }
 
 // NewHTTPFetcher creates a new HTTP fetcher instance
@@ -26,12 +30,14 @@ func NewHTTPFetcher(
 	robotsChecker *robots.Checker,
 	contentProcessor *processor.ContentProcessor,
 	userAgent string,
+	metrics *observability.Metrics,
 ) *HTTPFetcher {
 	return &HTTPFetcher{
 		httpClient:    httpClient,
 		robotsChecker: robotsChecker,
 		processor:     contentProcessor,
 		userAgent:     userAgent,
+		metrics:       metrics,
 	}
 }
 
@@ -45,12 +51,25 @@ type FetchRequest struct {
 
 // FetchURL retrieves and processes content from the specified URL
 func (f *HTTPFetcher) FetchURL(req *FetchRequest) (string, error) {
+	ctx := context.Background()
 	log.Printf("Fetching URL: %s", req.URL)
 
 	// Check robots.txt
+	if f.metrics != nil {
+		f.metrics.RecordRobotsCheck(ctx, req.URL, "checking")
+	}
+	
 	if !f.robotsChecker.IsAllowed(req.URL) {
 		log.Printf("Access denied by robots.txt for URL: %s", req.URL)
+		if f.metrics != nil {
+			f.metrics.RecordRobotsCheck(ctx, req.URL, "disallowed")
+			f.metrics.RecordRobotsBlocked(ctx, req.URL)
+		}
 		return "", fmt.Errorf("access to %s is disallowed by robots.txt", req.URL)
+	}
+	
+	if f.metrics != nil {
+		f.metrics.RecordRobotsCheck(ctx, req.URL, "allowed")
 	}
 
 	// Fetch the content
@@ -68,6 +87,8 @@ func (f *HTTPFetcher) FetchURL(req *FetchRequest) (string, error) {
 
 // fetchURL retrieves content from the specified URL
 func (f *HTTPFetcher) fetchURL(url string, raw bool) (string, error) {
+	ctx := context.Background()
+	
 	// Create HTTP request
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -105,10 +126,21 @@ func (f *HTTPFetcher) fetchURL(url string, raw bool) (string, error) {
 	log.Printf("Successfully fetched %d bytes from %s", len(body), url)
 
 	content := string(body)
+	originalSize := len(body)
 
 	// Process HTML if not raw mode
 	if !raw && strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
-		content = f.processor.ProcessHTML(content)
+		startTime := time.Now()
+		processedContent := f.processor.ProcessHTML(content)
+		processingDuration := time.Since(startTime)
+		
+		if f.metrics != nil {
+			f.metrics.RecordHTMLToMarkdownConversion(ctx, true)
+			f.metrics.RecordContentProcessing(ctx, "text/html", processingDuration)
+			f.metrics.RecordContentSizeRatio(ctx, originalSize, len(processedContent))
+		}
+		
+		content = processedContent
 	}
 
 	return content, nil

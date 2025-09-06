@@ -98,7 +98,7 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 	// Create components
 	robotsChecker := robots.NewChecker(cfg.UserAgent, cfg.IgnoreRobots, client)
 	contentProcessor := processor.NewContentProcessor()
-	httpFetcher := fetcher.NewHTTPFetcher(client, robotsChecker, contentProcessor, cfg.UserAgent)
+	httpFetcher := fetcher.NewHTTPFetcher(client, robotsChecker, contentProcessor, cfg.UserAgent, metrics)
 
 	fs := &FetchServer{
 		config:      cfg,
@@ -127,6 +127,12 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 
 // handleInitialized sends an endpoint event to the client after initialization
 func (fs *FetchServer) handleInitialized(ctx context.Context, initRequest *mcp.InitializedRequest) {
+	// Record MCP session metrics
+	if fs.metrics != nil {
+		fs.metrics.RecordMCPSessionChange(ctx, 1)
+		// Note: We'd need to hook into session close to decrement this
+	}
+	
 	// Build the endpoint URI based on the current server configuration
 	var endpointURI string
 	switch fs.config.Transport {
@@ -183,6 +189,13 @@ func (fs *FetchServer) handleFetchTool(
 
 	// Record start time for metrics
 	startTime := time.Now()
+	
+	// Record MCP tool call metrics
+	if fs.metrics != nil {
+		fs.metrics.RecordMCPToolCall(ctx, "fetch")
+		fs.metrics.RecordConcurrentRequestsChange(ctx, 1)
+		defer fs.metrics.RecordConcurrentRequestsChange(ctx, -1)
+	}
 
 	// Convert to fetcher request
 	fetchReq := &fetcher.FetchRequest{
@@ -209,6 +222,13 @@ func (fs *FetchServer) handleFetchTool(
 			result = "error"
 		}
 		fs.metrics.RecordFetchOperation(ctx, params.URL, result, duration)
+		fs.metrics.RecordMCPRequest(ctx, "tools/call", duration, err == nil)
+		
+		// Record response size metrics
+		if err == nil {
+			contentSize := int64(len(content))
+			fs.metrics.RecordFetchResponseSize(ctx, params.URL, contentSize)
+		}
 	}
 
 	if err != nil {

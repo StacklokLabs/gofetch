@@ -21,10 +21,31 @@ type Metrics struct {
 	FetchDuration       metric.Float64Histogram
 	FetchCount          metric.Int64Counter
 	FetchErrors         metric.Int64Counter
+	FetchResponseSize   metric.Float64Histogram
+	FetchBytesTotal     metric.Int64Counter
 
 	// Content processing metrics
 	ContentProcessingDuration metric.Float64Histogram
+	ContentSizeRatio          metric.Float64Histogram
+	HTMLToMarkdownCount       metric.Int64Counter
 	RobotsCheckCount          metric.Int64Counter
+	RobotsBlockedCount        metric.Int64Counter
+
+	// MCP protocol metrics
+	MCPRequestDuration  metric.Float64Histogram
+	MCPToolCallCount    metric.Int64Counter
+	MCPSessionCount     metric.Int64UpDownCounter
+	MCPErrorCount       metric.Int64Counter
+
+	// Cache metrics
+	CacheHits           metric.Int64Counter
+	CacheMisses         metric.Int64Counter
+	CacheEvictions      metric.Int64Counter
+	CacheSize           metric.Int64UpDownCounter
+
+	// Rate limiting metrics
+	RateLimitHits       metric.Int64Counter
+	ConcurrentRequests  metric.Int64UpDownCounter
 }
 
 // NewMetrics creates and registers all application metrics
@@ -110,6 +131,144 @@ func NewMetrics(meterProvider metric.MeterProvider, serviceName string) (*Metric
 		return nil, fmt.Errorf("failed to create robots_check_total metric: %w", err)
 	}
 
+	// Fetch response size histogram
+	metrics.FetchResponseSize, err = meter.Float64Histogram(
+		"fetch_response_size_bytes",
+		metric.WithDescription("Size of fetched responses in bytes"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create fetch_response_size_bytes metric: %w", err)
+	}
+
+	// Total bytes fetched counter
+	metrics.FetchBytesTotal, err = meter.Int64Counter(
+		"fetch_bytes_total",
+		metric.WithDescription("Total bytes fetched"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create fetch_bytes_total metric: %w", err)
+	}
+
+	// Content size ratio histogram (markdown size / html size)
+	metrics.ContentSizeRatio, err = meter.Float64Histogram(
+		"content_size_ratio",
+		metric.WithDescription("Ratio of markdown to HTML content size"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create content_size_ratio metric: %w", err)
+	}
+
+	// HTML to Markdown conversion counter
+	metrics.HTMLToMarkdownCount, err = meter.Int64Counter(
+		"html_to_markdown_conversions_total",
+		metric.WithDescription("Total number of HTML to Markdown conversions"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create html_to_markdown_conversions_total metric: %w", err)
+	}
+
+	// Robots blocked counter
+	metrics.RobotsBlockedCount, err = meter.Int64Counter(
+		"robots_blocked_total",
+		metric.WithDescription("Total number of requests blocked by robots.txt"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create robots_blocked_total metric: %w", err)
+	}
+
+	// MCP request duration histogram
+	metrics.MCPRequestDuration, err = meter.Float64Histogram(
+		"mcp_request_duration_seconds",
+		metric.WithDescription("Duration of MCP protocol requests in seconds"),
+		metric.WithUnit("s"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create mcp_request_duration_seconds metric: %w", err)
+	}
+
+	// MCP tool call counter
+	metrics.MCPToolCallCount, err = meter.Int64Counter(
+		"mcp_tool_calls_total",
+		metric.WithDescription("Total number of MCP tool calls"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create mcp_tool_calls_total metric: %w", err)
+	}
+
+	// MCP session gauge
+	metrics.MCPSessionCount, err = meter.Int64UpDownCounter(
+		"mcp_active_sessions",
+		metric.WithDescription("Number of active MCP sessions"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create mcp_active_sessions metric: %w", err)
+	}
+
+	// MCP error counter
+	metrics.MCPErrorCount, err = meter.Int64Counter(
+		"mcp_errors_total",
+		metric.WithDescription("Total number of MCP protocol errors"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create mcp_errors_total metric: %w", err)
+	}
+
+	// Cache hit counter
+	metrics.CacheHits, err = meter.Int64Counter(
+		"cache_hits_total",
+		metric.WithDescription("Total number of cache hits"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cache_hits_total metric: %w", err)
+	}
+
+	// Cache miss counter
+	metrics.CacheMisses, err = meter.Int64Counter(
+		"cache_misses_total",
+		metric.WithDescription("Total number of cache misses"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cache_misses_total metric: %w", err)
+	}
+
+	// Cache eviction counter
+	metrics.CacheEvictions, err = meter.Int64Counter(
+		"cache_evictions_total",
+		metric.WithDescription("Total number of cache evictions"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cache_evictions_total metric: %w", err)
+	}
+
+	// Cache size gauge
+	metrics.CacheSize, err = meter.Int64UpDownCounter(
+		"cache_size_entries",
+		metric.WithDescription("Current number of entries in cache"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cache_size_entries metric: %w", err)
+	}
+
+	// Rate limit hits counter
+	metrics.RateLimitHits, err = meter.Int64Counter(
+		"rate_limit_hits_total",
+		metric.WithDescription("Total number of rate limit hits"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create rate_limit_hits_total metric: %w", err)
+	}
+
+	// Concurrent requests gauge
+	metrics.ConcurrentRequests, err = meter.Int64UpDownCounter(
+		"concurrent_requests",
+		metric.WithDescription("Number of concurrent requests being processed"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create concurrent_requests metric: %w", err)
+	}
+
 	return metrics, nil
 }
 
@@ -162,6 +321,109 @@ func (m *Metrics) RecordRobotsCheck(ctx context.Context, url, result string) {
 	}
 
 	m.RobotsCheckCount.Add(ctx, 1, metric.WithAttributes(attrs...))
+}
+
+// RecordFetchResponseSize records the size of a fetched response
+func (m *Metrics) RecordFetchResponseSize(ctx context.Context, url string, sizeBytes int64) {
+	attrs := []attribute.KeyValue{
+		attribute.String("url_host", extractHost(url)),
+	}
+	
+	m.FetchResponseSize.Record(ctx, float64(sizeBytes), metric.WithAttributes(attrs...))
+	m.FetchBytesTotal.Add(ctx, sizeBytes, metric.WithAttributes(attrs...))
+}
+
+// RecordContentSizeRatio records the size ratio between processed and original content
+func (m *Metrics) RecordContentSizeRatio(ctx context.Context, originalSize, processedSize int) {
+	if originalSize > 0 {
+		ratio := float64(processedSize) / float64(originalSize)
+		m.ContentSizeRatio.Record(ctx, ratio)
+	}
+}
+
+// RecordHTMLToMarkdownConversion records an HTML to Markdown conversion
+func (m *Metrics) RecordHTMLToMarkdownConversion(ctx context.Context, success bool) {
+	attrs := []attribute.KeyValue{
+		attribute.Bool("success", success),
+	}
+	m.HTMLToMarkdownCount.Add(ctx, 1, metric.WithAttributes(attrs...))
+}
+
+// RecordRobotsBlocked records when a request is blocked by robots.txt
+func (m *Metrics) RecordRobotsBlocked(ctx context.Context, url string) {
+	attrs := []attribute.KeyValue{
+		attribute.String("url_host", extractHost(url)),
+	}
+	m.RobotsBlockedCount.Add(ctx, 1, metric.WithAttributes(attrs...))
+}
+
+// RecordMCPRequest records metrics for an MCP protocol request
+func (m *Metrics) RecordMCPRequest(ctx context.Context, method string, duration time.Duration, success bool) {
+	attrs := []attribute.KeyValue{
+		attribute.String("method", method),
+		attribute.Bool("success", success),
+	}
+	
+	m.MCPRequestDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
+	
+	if !success {
+		m.MCPErrorCount.Add(ctx, 1, metric.WithAttributes(attrs...))
+	}
+}
+
+// RecordMCPToolCall records an MCP tool call
+func (m *Metrics) RecordMCPToolCall(ctx context.Context, toolName string) {
+	attrs := []attribute.KeyValue{
+		attribute.String("tool", toolName),
+	}
+	m.MCPToolCallCount.Add(ctx, 1, metric.WithAttributes(attrs...))
+}
+
+// RecordMCPSessionChange records a change in active MCP sessions
+func (m *Metrics) RecordMCPSessionChange(ctx context.Context, delta int64) {
+	m.MCPSessionCount.Add(ctx, delta)
+}
+
+// RecordCacheHit records a cache hit
+func (m *Metrics) RecordCacheHit(ctx context.Context, cacheType string) {
+	attrs := []attribute.KeyValue{
+		attribute.String("cache_type", cacheType),
+	}
+	m.CacheHits.Add(ctx, 1, metric.WithAttributes(attrs...))
+}
+
+// RecordCacheMiss records a cache miss
+func (m *Metrics) RecordCacheMiss(ctx context.Context, cacheType string) {
+	attrs := []attribute.KeyValue{
+		attribute.String("cache_type", cacheType),
+	}
+	m.CacheMisses.Add(ctx, 1, metric.WithAttributes(attrs...))
+}
+
+// RecordCacheEviction records a cache eviction
+func (m *Metrics) RecordCacheEviction(ctx context.Context, cacheType string, count int64) {
+	attrs := []attribute.KeyValue{
+		attribute.String("cache_type", cacheType),
+	}
+	m.CacheEvictions.Add(ctx, count, metric.WithAttributes(attrs...))
+}
+
+// RecordCacheSizeChange records a change in cache size
+func (m *Metrics) RecordCacheSizeChange(ctx context.Context, delta int64) {
+	m.CacheSize.Add(ctx, delta)
+}
+
+// RecordRateLimitHit records when a rate limit is hit
+func (m *Metrics) RecordRateLimitHit(ctx context.Context, limitType string) {
+	attrs := []attribute.KeyValue{
+		attribute.String("limit_type", limitType),
+	}
+	m.RateLimitHits.Add(ctx, 1, metric.WithAttributes(attrs...))
+}
+
+// RecordConcurrentRequestsChange records a change in concurrent requests
+func (m *Metrics) RecordConcurrentRequestsChange(ctx context.Context, delta int64) {
+	m.ConcurrentRequests.Add(ctx, delta)
 }
 
 // extractHost extracts the host from a URL for metrics labeling
