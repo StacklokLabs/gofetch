@@ -1,6 +1,6 @@
 module github.com/stackloklabs/gofetch
 
-go 1.23.2
+go 1.24.0
 
 toolchain go1.25.1
 
@@ -9,7 +9,7 @@ require (
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.4.0
 	github.com/go-shiori/go-readability v0.0.0-20250217085726-9f5bf5ca7612
 	github.com/modelcontextprotocol/go-sdk v0.4.0
-	golang.org/x/net v0.43.0
+	golang.org/x/net v0.44.0
 )
 
 require (
@@ -23,5 +23,5 @@ require (
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/yuin/goldmark v1.7.13 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
 )
