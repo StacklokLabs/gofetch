@@ -97,7 +97,7 @@ MCP_PORT=8080              # Override port number
 ## Dependencies & Key Libraries
 
 ### Core Dependencies
-- **`github.com/modelcontextprotocol/go-sdk`** - MCP SDK for Go
+- **`github.com/modelcontextprotocol/go-sdk`** v1.0.0 - MCP SDK for Go (stable release)
 - **`github.com/JohannesKaufmann/html-to-markdown`** - HTML to Markdown conversion
 - **`github.com/go-shiori/go-readability`** - Content extraction
 - **`golang.org/x/net`** - HTTP client and HTML parsing
@@ -124,23 +124,11 @@ task clean          # Clean build directory
 ### Testing
 - Unit tests in each package (`*_test.go` files)
 - Integration tests in `test/` directory
-- Requires `yardstick` client for integration tests
+  - `test/integration-test.sh` - Tests SSE and StreamableHTTP transports with tool calls
+  - `test/integration-endpoints.sh` - Tests endpoint accessibility and responses
+- Requires `yardstick-client` for integration tests (installed via `go install`)
 
 ## Container Deployment
-
-### ToolHive Integration
-The server is designed to work with ToolHive for easy deployment:
-
-```bash
-# Register client
-thv client setup
-
-# Run fetch server
-thv run fetch --transport streamable-http --target-port 8080
-
-# List running servers
-thv list
-```
 
 ### Container Image
 - **Registry**: `ghcr.io/stackloklabs/gofetch/server`
@@ -201,10 +189,11 @@ The server provides comprehensive logging:
 ## Integration Points
 
 ### MCP Protocol Compliance
-- Full MCP specification compliance
+- Full MCP specification compliance (2025-06-18)
 - Tool registration and discovery
-- Session management
+- Session management with stateful/stateless support
 - Error handling and logging
+- Proper HTTP method support (GET for SSE, POST for requests, DELETE for session termination)
 
 ### External Dependencies
 - **Web content**: HTTP fetching with proper headers
