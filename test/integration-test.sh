@@ -67,10 +67,12 @@ if docker ps | grep -q gofetch-sse-test; then
     fi
     
     echo "🔧 Testing tool calling via SSE..."
-    if yardstick-client -transport sse -address localhost -port 8080 -action=call-tool -tool=fetch -args='{"url":"https://example.com"}' | grep -q "This domain is for use in illustrative examples in documents"; then
+    OUTPUT=$(yardstick-client -transport sse -address localhost -port 8080 -action=call-tool -tool=fetch -args='{"url":"https://example.com"}' 2>/dev/null)
+    if echo "$OUTPUT" | grep -q "This domain is for use in illustrative examples in documents"; then
         echo "✅ SSE tool call returned expected output"
     else
         echo "! SSE tool call did not return expected output"
+        echo "Output received: $OUTPUT"
         exit 1
     fi
 else
@@ -117,10 +119,12 @@ if docker ps | grep -q gofetch-http-test; then
     fi
     
     echo "🔧 Testing tool calling via streamable-http..."
-    if yardstick-client -transport streamable-http -address localhost -port 8081 -action=call-tool -tool=fetch -args='{"url":"https://example.com"}' | grep -q "This domain is for use in illustrative examples in documents"; then
+    OUTPUT=$(yardstick-client -transport streamable-http -address localhost -port 8081 -action=call-tool -tool=fetch -args='{"url":"https://example.com"}' 2>/dev/null)
+    if echo "$OUTPUT" | grep -q "This domain is for use in illustrative examples in documents"; then
         echo "✅ Streamable tool call returned expected output"
     else
         echo "! Streamable tool call did not return expected output"
+        echo "Output received: $OUTPUT"
         exit 1
     fi
 else

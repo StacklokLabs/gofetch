@@ -89,8 +89,9 @@ else
 fi
 
 echo "🔎 Checking /mcp (GET)"
-MCP_GET_STATUS=$(check_status GET "http://localhost:8081/mcp" "" "" || true)
-if [ "$MCP_GET_STATUS" = "200" ] || [ "$MCP_GET_STATUS" = "400" ]; then
+# GET without session should return 405 according to MCP spec for stateful servers
+MCP_GET_STATUS=$(curl -s -o /dev/null -m 5 -w "%{http_code}" -H 'Accept: text/event-stream' "http://localhost:8081/mcp" 2>/dev/null || echo "000")
+if [ "$MCP_GET_STATUS" = "200" ] || [ "$MCP_GET_STATUS" = "400" ] || [ "$MCP_GET_STATUS" = "405" ]; then
     echo "✓ /mcp endpoint reachable via GET ($MCP_GET_STATUS)"
 else
     echo "! /mcp endpoint GET not reachable (status: $MCP_GET_STATUS)"
