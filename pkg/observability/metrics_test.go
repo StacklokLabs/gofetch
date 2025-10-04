@@ -140,17 +140,17 @@ func TestExtractHost(t *testing.T) {
 		{
 			name:     "normal URL",
 			url:      "https://example.com/path",
-			expected: "https://example.com/path",
+			expected: "example.com",
 		},
 		{
 			name:     "long URL",
 			url:      "https://very-long-domain-name-that-exceeds-fifty-characters.com/very/long/path",
-			expected: "long_url",
+			expected: "very-long-domain-name-that-exceeds-fifty-characters.com",
 		},
 		{
 			name:     "short URL",
 			url:      "http://a.com",
-			expected: "http://a.com",
+			expected: "a.com",
 		},
 	}
 

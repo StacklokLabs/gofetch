@@ -54,20 +54,28 @@ func (f *HTTPFetcher) FetchURL(req *FetchRequest) (string, error) {
 	ctx := context.Background()
 	log.Printf("Fetching URL: %s", req.URL)
 
+	// Record domain fetch metrics
+	if f.metrics != nil {
+		f.metrics.RecordDomainFetch(ctx, req.URL)
+		log.Printf("Recorded domain fetch metric for URL: %s", req.URL)
+	} else {
+		log.Printf("Metrics not initialized - skipping domain fetch metric for URL: %s", req.URL)
+	}
+
 	// Check robots.txt
 	if f.metrics != nil {
 		f.metrics.RecordRobotsCheck(ctx, req.URL, "checking")
 	}
-	
+
 	if !f.robotsChecker.IsAllowed(req.URL) {
 		log.Printf("Access denied by robots.txt for URL: %s", req.URL)
 		if f.metrics != nil {
 			f.metrics.RecordRobotsCheck(ctx, req.URL, "disallowed")
-			f.metrics.RecordRobotsBlocked(ctx, req.URL)
+			f.metrics.RecordRobotsViolation(ctx, req.URL)
 		}
 		return "", fmt.Errorf("access to %s is disallowed by robots.txt", req.URL)
 	}
-	
+
 	if f.metrics != nil {
 		f.metrics.RecordRobotsCheck(ctx, req.URL, "allowed")
 	}
@@ -104,6 +112,11 @@ func (f *HTTPFetcher) fetchURL(url string, raw bool) (string, error) {
 	resp, err := f.httpClient.Do(req)
 	if err != nil {
 		log.Printf("HTTP request failed for %s: %v", url, err)
+		// Record network error metrics
+		if f.metrics != nil {
+			errorType := observability.ClassifyNetworkError(err)
+			f.metrics.RecordNetworkError(ctx, url, errorType)
+		}
 		return "", fmt.Errorf("failed to fetch URL: %v", err)
 	}
 	defer resp.Body.Close()

@@ -60,7 +60,11 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 				metrics, err = observability.NewMetrics(telemetry.MeterProvider, obsConfig.ServiceName)
 				if err != nil {
 					log.Printf("Failed to initialize metrics: %v", err)
+				} else {
+					log.Printf("Successfully initialized metrics with service name: %s", obsConfig.ServiceName)
 				}
+			} else {
+				log.Printf("MeterProvider is nil, metrics will not be initialized")
 			}
 			
 			if telemetry.TracerProvider != nil {

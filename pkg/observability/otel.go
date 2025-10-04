@@ -103,6 +103,12 @@ func Setup(ctx context.Context, obsConfig ObservabilityConfig) (*Telemetry, erro
 
 // setupTracing configures OpenTelemetry tracing
 func setupTracing(ctx context.Context, res *resource.Resource, endpoint string) (trace.TracerProvider, func(context.Context) error, error) {
+	// Default to localhost:4318 if no endpoint is provided
+	if endpoint == "" {
+		endpoint = "localhost:4318"
+		log.Printf("No OTLP endpoint specified for tracing, using default: %s", endpoint)
+	}
+
 	// Create OTLP HTTP exporter for traces
 	traceExporter, err := otlptracehttp.New(ctx,
 		otlptracehttp.WithEndpoint(endpoint),
@@ -128,6 +134,12 @@ func setupTracing(ctx context.Context, res *resource.Resource, endpoint string) 
 
 // setupMetrics configures OpenTelemetry metrics
 func setupMetrics(ctx context.Context, res *resource.Resource, endpoint string) (metric.MeterProvider, func(context.Context) error, error) {
+	// Default to localhost:4318 if no endpoint is provided (OTLP HTTP default port)
+	if endpoint == "" {
+		endpoint = "localhost:4318"
+		log.Printf("No OTLP endpoint specified for metrics, using default: %s", endpoint)
+	}
+
 	// Create OTLP HTTP exporter for metrics
 	metricExporter, err := otlpmetrichttp.New(ctx,
 		otlpmetrichttp.WithEndpoint(endpoint),

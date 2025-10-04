@@ -3,6 +3,7 @@ package observability
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -46,6 +47,11 @@ type Metrics struct {
 	// Rate limiting metrics
 	RateLimitHits       metric.Int64Counter
 	ConcurrentRequests  metric.Int64UpDownCounter
+
+	// Domain and error tracking metrics
+	FetchByDomain       metric.Int64Counter
+	RobotsViolations    metric.Int64Counter
+	NetworkErrors       metric.Int64Counter
 }
 
 // NewMetrics creates and registers all application metrics
@@ -269,6 +275,33 @@ func NewMetrics(meterProvider metric.MeterProvider, serviceName string) (*Metric
 		return nil, fmt.Errorf("failed to create concurrent_requests metric: %w", err)
 	}
 
+	// Fetch requests by domain counter
+	metrics.FetchByDomain, err = meter.Int64Counter(
+		"fetch_requests_by_domain",
+		metric.WithDescription("Number of fetch requests per domain"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create fetch_requests_by_domain metric: %w", err)
+	}
+
+	// Robots.txt violations counter
+	metrics.RobotsViolations, err = meter.Int64Counter(
+		"robots_txt_violations_total",
+		metric.WithDescription("Total number of robots.txt violations (blocked requests)"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create robots_txt_violations_total metric: %w", err)
+	}
+
+	// Network errors by type counter
+	metrics.NetworkErrors, err = meter.Int64Counter(
+		"network_errors_by_type",
+		metric.WithDescription("Network errors categorized by type"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create network_errors_by_type metric: %w", err)
+	}
+
 	return metrics, nil
 }
 
@@ -428,12 +461,102 @@ func (m *Metrics) RecordConcurrentRequestsChange(ctx context.Context, delta int6
 
 // extractHost extracts the host from a URL for metrics labeling
 func extractHost(urlStr string) string {
-	// Simple host extraction - in production you might want more robust URL parsing
-	if len(urlStr) > 50 {
-		// For very long URLs, just use a generic label to avoid cardinality explosion
-		return "long_url"
+	// Parse URL to extract host
+	if urlStr == "" {
+		return "unknown"
 	}
-	return urlStr
+
+	// Find the start of the host after the protocol
+	start := 0
+	if idx := strings.Index(urlStr, "://"); idx != -1 {
+		start = idx + 3
+	}
+
+	// Find the end of the host (before path or port)
+	end := len(urlStr)
+	for i := start; i < len(urlStr); i++ {
+		if urlStr[i] == '/' || urlStr[i] == ':' || urlStr[i] == '?' {
+			end = i
+			break
+		}
+	}
+
+	if start >= end {
+		return "unknown"
+	}
+
+	host := urlStr[start:end]
+
+	// Limit cardinality by returning "other" for very rare domains
+	if len(host) > 100 {
+		return "other"
+	}
+
+	return host
+}
+
+// RecordDomainFetch records fetch metrics per domain
+func (m *Metrics) RecordDomainFetch(ctx context.Context, url string) {
+	if m == nil {
+		return
+	}
+
+	domain := extractHost(url)
+
+	// Record fetch by domain
+	attrs := []attribute.KeyValue{
+		attribute.String("domain", domain),
+	}
+	m.FetchByDomain.Add(ctx, 1, metric.WithAttributes(attrs...))
+}
+
+// RecordRobotsViolation records when a request is blocked by robots.txt
+func (m *Metrics) RecordRobotsViolation(ctx context.Context, url string) {
+	domain := extractHost(url)
+	attrs := []attribute.KeyValue{
+		attribute.String("domain", domain),
+	}
+	m.RobotsViolations.Add(ctx, 1, metric.WithAttributes(attrs...))
+
+	// Also record it in the general robots blocked counter
+	m.RecordRobotsBlocked(ctx, url)
+}
+
+// RecordNetworkError records network errors by type
+func (m *Metrics) RecordNetworkError(ctx context.Context, url string, errorType string) {
+	domain := extractHost(url)
+	attrs := []attribute.KeyValue{
+		attribute.String("domain", domain),
+		attribute.String("error_type", errorType),
+	}
+	m.NetworkErrors.Add(ctx, 1, metric.WithAttributes(attrs...))
+}
+
+// ClassifyNetworkError classifies network errors into categories
+func ClassifyNetworkError(err error) string {
+	if err == nil {
+		return "none"
+	}
+
+	errStr := err.Error()
+	switch {
+	case strings.Contains(errStr, "timeout"):
+		return "timeout"
+	case strings.Contains(errStr, "connection refused"):
+		return "connection_refused"
+	case strings.Contains(errStr, "no such host") || strings.Contains(errStr, "DNS"):
+		return "dns_failure"
+	case strings.Contains(errStr, "certificate") || strings.Contains(errStr, "x509"):
+		return "tls_error"
+	case strings.Contains(errStr, "reset by peer"):
+		return "connection_reset"
+	case strings.Contains(errStr, "broken pipe"):
+		return "broken_pipe"
+	case strings.Contains(errStr, "EOF"):
+		return "unexpected_eof"
+	default:
+		return "other"
+	}
 }
 
 // GetGlobalMetrics returns the global metrics instance
