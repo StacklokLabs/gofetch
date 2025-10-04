@@ -46,7 +46,7 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 	var metrics *observability.Metrics
 	var traceHelper *observability.TraceHelper
 	
-	if cfg.EnableOTelMetrics || cfg.EnableOTelTracing || cfg.EnablePrometheus {
+	if cfg.EnableOTelMetrics || cfg.EnableOTelTracing {
 		ctx := context.Background()
 		obsConfig := observability.NewObservabilityConfig(cfg)
 		
@@ -278,11 +278,6 @@ func (fs *FetchServer) startSSEServer() error {
 		mux.Handle("/messages", sseHandler)
 	}
 	
-	// Add Prometheus metrics endpoint if enabled
-	if fs.config.EnablePrometheus && fs.telemetry != nil {
-		mux.Handle("/metrics", fs.telemetry.PrometheusHandler())
-		log.Printf("Prometheus metrics endpoint enabled at /metrics")
-	}
 
 	// Start HTTP server
 	server := &http.Server{
@@ -316,11 +311,6 @@ func (fs *FetchServer) startStreamableHTTPServer() error {
 		mux.Handle("/mcp", streamableHandler)
 	}
 	
-	// Add Prometheus metrics endpoint if enabled
-	if fs.config.EnablePrometheus && fs.telemetry != nil {
-		mux.Handle("/metrics", fs.telemetry.PrometheusHandler())
-		log.Printf("Prometheus metrics endpoint enabled at /metrics")
-	}
 
 	// Start HTTP server
 	server := &http.Server{
@@ -360,9 +350,6 @@ func (fs *FetchServer) logServerStartup() {
 	}
 	if fs.config.EnableOTelTracing {
 		log.Printf("OpenTelemetry tracing enabled")
-	}
-	if fs.config.EnablePrometheus {
-		log.Printf("Prometheus metrics endpoint: http://localhost:%d/metrics", fs.config.Port)
 	}
 
 	log.Printf("=== Server starting ===")

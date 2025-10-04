@@ -11,7 +11,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	otelprom "go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -29,14 +28,12 @@ type ObservabilityConfig struct {
 	Endpoint       string
 	EnableMetrics  bool
 	EnableTracing  bool
-	EnablePrometheus bool
 }
 
 // Telemetry holds the telemetry providers and shutdown functions
 type Telemetry struct {
 	TracerProvider  trace.TracerProvider
 	MeterProvider   metric.MeterProvider
-	PrometheusExporter *otelprom.Exporter
 	shutdownFuncs   []func(context.Context) error
 }
 
@@ -48,7 +45,6 @@ func NewObservabilityConfig(cfg config.Config) ObservabilityConfig {
 		Endpoint:          cfg.OTelEndpoint,
 		EnableMetrics:     cfg.EnableOTelMetrics,
 		EnableTracing:     cfg.EnableOTelTracing,
-		EnablePrometheus:  cfg.EnablePrometheus,
 	}
 }
 
@@ -96,26 +92,10 @@ func Setup(ctx context.Context, obsConfig ObservabilityConfig) (*Telemetry, erro
 		}
 		tel.MeterProvider = meterProvider
 		tel.shutdownFuncs = append(tel.shutdownFuncs, shutdownFunc)
-		
+
 		// Set global meter provider
 		otel.SetMeterProvider(meterProvider)
 		log.Printf("OpenTelemetry metrics initialized with endpoint: %s", obsConfig.Endpoint)
-	}
-
-	// Setup Prometheus if enabled
-	if obsConfig.EnablePrometheus {
-		promExporter, meterProvider, err := setupPrometheus(ctx, res)
-		if err != nil {
-			return nil, fmt.Errorf("failed to setup Prometheus: %w", err)
-		}
-		tel.PrometheusExporter = promExporter
-		
-		// If we don't have OTEL metrics but have Prometheus, use Prometheus meter provider
-		if !obsConfig.EnableMetrics {
-			tel.MeterProvider = meterProvider
-			otel.SetMeterProvider(meterProvider)
-		}
-		log.Printf("Prometheus metrics endpoint initialized")
 	}
 
 	return tel, nil
@@ -175,22 +155,6 @@ func setupMetrics(ctx context.Context, res *resource.Resource, endpoint string) 
 	return meterProvider, shutdownFunc, nil
 }
 
-// setupPrometheus configures Prometheus metrics
-func setupPrometheus(ctx context.Context, res *resource.Resource) (*otelprom.Exporter, metric.MeterProvider, error) {
-	// Create Prometheus exporter
-	promExporter, err := otelprom.New()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create Prometheus exporter: %w", err)
-	}
-
-	// Create meter provider with Prometheus reader
-	meterProvider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(promExporter),
-		sdkmetric.WithResource(res),
-	)
-
-	return promExporter, meterProvider, nil
-}
 
 // Shutdown gracefully shuts down all telemetry providers
 func (t *Telemetry) Shutdown(ctx context.Context) error {

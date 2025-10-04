@@ -34,8 +34,6 @@ type Config struct {
 	OTelServiceName     string
 	OTelServiceVersion  string
 	OTelEndpoint        string
-	EnablePrometheus    bool
-	MetricsPort         int
 }
 
 var transport string
@@ -62,9 +60,6 @@ func ParseFlags() Config {
 	if config.OTelServiceVersion == "" {
 		config.OTelServiceVersion = ServerVersion
 	}
-	if config.MetricsPort == 0 {
-		config.MetricsPort = config.Port
-	}
 
 	return config
 }
@@ -85,8 +80,6 @@ func parseConfig(config *Config) {
 	flag.StringVar(&config.OTelServiceName, "otel-service-name", "", "Service name for OpenTelemetry (default: fetch-server)")
 	flag.StringVar(&config.OTelServiceVersion, "otel-service-version", "", "Service version for OpenTelemetry (default: 1.0.0)")
 	flag.StringVar(&config.OTelEndpoint, "otel-endpoint", "", "OTLP endpoint for exporting telemetry data")
-	flag.BoolVar(&config.EnablePrometheus, "enable-prometheus", false, "Enable Prometheus metrics endpoint")
-	flag.IntVar(&config.MetricsPort, "metrics-port", 0, "Port for metrics endpoint (default: same as main port)")
 	
 	flag.Parse()
 
@@ -115,13 +108,5 @@ func parseConfig(config *Config) {
 	}
 	if endpoint, ok := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT"); ok {
 		config.OTelEndpoint = endpoint
-	}
-	if enablePrometheus, ok := os.LookupEnv("ENABLE_PROMETHEUS"); ok {
-		config.EnablePrometheus = enablePrometheus == "true"
-	}
-	if metricsPort, ok := os.LookupEnv("METRICS_PORT"); ok {
-		if intValue, err := strconv.Atoi(metricsPort); err == nil {
-			config.MetricsPort = intValue
-		}
 	}
 }

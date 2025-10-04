@@ -14,7 +14,6 @@ func TestNewObservabilityConfig(t *testing.T) {
 		OTelServiceName:    "test-service",
 		OTelServiceVersion: "1.0.0",
 		OTelEndpoint:       "http://localhost:4317",
-		EnablePrometheus:   true,
 	}
 
 	obsConfig := NewObservabilityConfig(cfg)
@@ -34,9 +33,6 @@ func TestNewObservabilityConfig(t *testing.T) {
 	if !obsConfig.EnableTracing {
 		t.Errorf("expected EnableTracing to be true")
 	}
-	if !obsConfig.EnablePrometheus {
-		t.Errorf("expected EnablePrometheus to be true")
-	}
 }
 
 func TestSetupWithDisabledObservability(t *testing.T) {
@@ -45,7 +41,6 @@ func TestSetupWithDisabledObservability(t *testing.T) {
 		ServiceVersion:   "1.0.0",
 		EnableMetrics:    false,
 		EnableTracing:    false,
-		EnablePrometheus: false,
 	}
 
 	ctx := context.Background()
@@ -65,41 +60,8 @@ func TestSetupWithDisabledObservability(t *testing.T) {
 	if tel.MeterProvider != nil {
 		t.Errorf("expected nil MeterProvider when metrics are disabled")
 	}
-	if tel.PrometheusExporter != nil {
-		t.Errorf("expected nil PrometheusExporter when Prometheus is disabled")
-	}
 }
 
-func TestSetupWithPrometheusOnly(t *testing.T) {
-	obsConfig := ObservabilityConfig{
-		ServiceName:      "test-service",
-		ServiceVersion:   "1.0.0",
-		EnableMetrics:    false,
-		EnableTracing:    false,
-		EnablePrometheus: true,
-	}
-
-	ctx := context.Background()
-	tel, err := Setup(ctx, obsConfig)
-
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
-	}
-	if tel == nil {
-		t.Fatal("expected telemetry instance to be created")
-	}
-
-	// When only Prometheus is enabled
-	if tel.TracerProvider != nil {
-		t.Errorf("expected nil TracerProvider when tracing is disabled")
-	}
-	if tel.MeterProvider == nil {
-		t.Errorf("expected MeterProvider when Prometheus is enabled")
-	}
-	if tel.PrometheusExporter == nil {
-		t.Errorf("expected PrometheusExporter when Prometheus is enabled")
-	}
-}
 
 func TestTelemetryShutdown(t *testing.T) {
 	tel := &Telemetry{}
@@ -136,7 +98,6 @@ func BenchmarkNewObservabilityConfig(b *testing.B) {
 		OTelServiceName:    "benchmark-service",
 		OTelServiceVersion: "1.0.0",
 		OTelEndpoint:       "http://localhost:4317",
-		EnablePrometheus:   true,
 	}
 
 	b.ResetTimer()
