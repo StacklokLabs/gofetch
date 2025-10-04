@@ -265,7 +265,7 @@ func (fs *FetchServer) startSSEServer() error {
 	// Create SSE handler according to MCP specification
 	sseHandler := mcp.NewSSEHandler(func(_ *http.Request) *mcp.Server {
 		return fs.mcpServer
-	})
+	}, &mcp.SSEOptions{})
 
 	// Handle SSE endpoint
 	if fs.traceHelper != nil {
