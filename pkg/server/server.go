@@ -15,6 +15,7 @@ import (
 	"github.com/stackloklabs/gofetch/pkg/fetcher"
 	"github.com/stackloklabs/gofetch/pkg/processor"
 	"github.com/stackloklabs/gofetch/pkg/robots"
+	"github.com/stackloklabs/gofetch/pkg/telemetry"
 )
 
 // FetchParams defines the input parameters for the fetch tool
@@ -118,28 +119,36 @@ func (fs *FetchServer) setupTools() {
 
 // handleFetchTool processes fetch tool requests
 func (fs *FetchServer) handleFetchTool(
-	_ context.Context,
+	ctx context.Context,
 	_ *mcp.CallToolRequest,
 	params FetchParams,
 ) (*mcp.CallToolResult, any, error) {
 	log.Printf("Tool call received: fetch")
 
-	// Convert to fetcher request
-	fetchReq := &fetcher.FetchRequest{
-		URL: params.URL,
-		Raw: params.Raw,
-	}
+	var content string
+	var fetchErr error
 
-	if params.MaxLength != nil {
-		fetchReq.MaxLength = params.MaxLength
-	}
+	// Wrap the fetch operation with telemetry middleware
+	err := telemetry.FetchToolMiddleware(ctx, params.URL, func() error {
+		// Convert to fetcher request
+		fetchReq := &fetcher.FetchRequest{
+			URL: params.URL,
+			Raw: params.Raw,
+		}
 
-	if params.StartIndex != nil {
-		fetchReq.StartIndex = params.StartIndex
-	}
+		if params.MaxLength != nil {
+			fetchReq.MaxLength = params.MaxLength
+		}
 
-	// Fetch the content
-	content, err := fs.fetcher.FetchURL(fetchReq)
+		if params.StartIndex != nil {
+			fetchReq.StartIndex = params.StartIndex
+		}
+
+		// Fetch the content
+		content, fetchErr = fs.fetcher.FetchURL(fetchReq)
+		return fetchErr
+	})
+
 	if err != nil {
 		return nil, nil, err
 	}
