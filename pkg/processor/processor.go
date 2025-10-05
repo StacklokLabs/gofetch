@@ -20,7 +20,7 @@ func NewContentProcessor() *ContentProcessor {
 }
 
 // ProcessHTML converts HTML content to readable markdown
-func (p *ContentProcessor) ProcessHTML(htmlContent string) string {
+func (*ContentProcessor) ProcessHTML(htmlContent string) string {
 	// Parse HTML document
 	doc, err := html.Parse(strings.NewReader(htmlContent))
 	if err != nil {

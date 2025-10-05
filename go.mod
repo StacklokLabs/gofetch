@@ -2,8 +2,6 @@ module github.com/stackloklabs/gofetch
 
 go 1.24.0
 
-toolchain go1.25.1
-
 require (
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.4.0
 	github.com/go-shiori/go-readability v0.0.0-20250217085726-9f5bf5ca7612
