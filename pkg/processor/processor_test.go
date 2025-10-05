@@ -7,8 +7,8 @@ import (
 func TestNewContentProcessor(t *testing.T) {
 	processor := NewContentProcessor()
 
-	if processor.htmlConverter == nil {
-		t.Error("expected htmlConverter to be initialized")
+	if processor == nil {
+		t.Error("expected processor to be initialized")
 	}
 }
 

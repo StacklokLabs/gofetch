@@ -4,22 +4,19 @@ package processor
 import (
 	"strings"
 
-	md "github.com/JohannesKaufmann/html-to-markdown"
+	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/go-shiori/go-readability"
 	"golang.org/x/net/html"
 )
 
 // ContentProcessor handles HTML processing and content formatting
 type ContentProcessor struct {
-	htmlConverter *md.Converter
+	// No longer need to store a converter instance in v2
 }
 
 // NewContentProcessor creates a new content processor instance
 func NewContentProcessor() *ContentProcessor {
-	converter := md.NewConverter("", true, nil)
-	return &ContentProcessor{
-		htmlConverter: converter,
-	}
+	return &ContentProcessor{}
 }
 
 // ProcessHTML converts HTML content to readable markdown
@@ -36,8 +33,8 @@ func (p *ContentProcessor) ProcessHTML(htmlContent string) string {
 		htmlContent = article.Content
 	}
 
-	// Convert to markdown
-	markdown, err := p.htmlConverter.ConvertString(htmlContent)
+	// Convert to markdown using the new v2 API
+	markdown, err := htmltomarkdown.ConvertString(htmlContent)
 	if err != nil {
 		return htmlContent
 	}
