@@ -1,6 +1,6 @@
 module github.com/stackloklabs/gofetch
 
-go 1.24.0
+go 1.25.6
 
 require (
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.0
