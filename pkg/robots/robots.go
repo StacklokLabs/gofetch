@@ -57,7 +57,7 @@ func (c *Checker) fetchRobotsContent(parsedURL *url.URL) (string, error) {
 
 	req.Header.Set("User-Agent", c.userAgent)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClient.Do(req) //nolint:gosec // Fetching robots.txt for user-provided URLs is expected behavior
 	if err != nil || resp.StatusCode != 200 {
 		return "", fmt.Errorf("failed to fetch robots.txt")
 	}
