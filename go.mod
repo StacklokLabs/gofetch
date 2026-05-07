@@ -3,7 +3,7 @@ module github.com/stackloklabs/gofetch
 go 1.25.7
 
 require (
-	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.0
+	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.1
 	github.com/go-shiori/go-readability v0.0.0-20251205110129-5db1dc9836f0
 	github.com/modelcontextprotocol/go-sdk v1.6.0
 	golang.org/x/net v0.53.0
