@@ -75,8 +75,8 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 	return fs
 }
 
-// handleInitialized sends an endpoint event to the client after initialization
-func (fs *FetchServer) handleInitialized(ctx context.Context, initRequest *mcp.InitializedRequest) {
+// handleInitialized logs the endpoint URI for the initialized session.
+func (fs *FetchServer) handleInitialized(_ context.Context, initRequest *mcp.InitializedRequest) {
 	// Build the endpoint URI based on the current server configuration
 	var endpointURI string
 	switch fs.config.Transport {
@@ -88,22 +88,7 @@ func (fs *FetchServer) handleInitialized(ctx context.Context, initRequest *mcp.I
 		endpointURI = fmt.Sprintf("http://localhost:%d/messages", fs.config.Port)
 	}
 
-	// Send endpoint event as a log message with structured data
-	err := initRequest.Session.Log(ctx, &mcp.LoggingMessageParams{
-		Level: "info",
-		Data: map[string]interface{}{
-			"type":         "endpoint_event",
-			"message":      "Client must use this endpoint for sending messages",
-			"endpoint_uri": endpointURI,
-		},
-		Logger: "gofetch-server",
-	})
-
-	if err != nil {
-		log.Printf("Failed to send endpoint event: %v", err)
-	} else {
-		log.Printf("Sent endpoint event to client %s: %s", initRequest.Session.ID(), endpointURI)
-	}
+	log.Printf("Initialized client session %s; message endpoint: %s", initRequest.Session.ID(), endpointURI)
 }
 
 // setupTools registers the fetch tool with the MCP server
