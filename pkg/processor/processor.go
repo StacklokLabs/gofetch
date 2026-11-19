@@ -46,7 +46,7 @@ func (*ContentProcessor) ProcessHTML(htmlContent string) string {
 func (*ContentProcessor) FormatContent(content string, startIndex, maxLength *int) string {
 	// Apply start index offset
 	start := 0
-	if startIndex != nil {
+	if startIndex != nil && *startIndex > 0 {
 		start = *startIndex
 	}
 
@@ -57,7 +57,7 @@ func (*ContentProcessor) FormatContent(content string, startIndex, maxLength *in
 	content = content[start:]
 
 	// Apply length limit
-	if maxLength != nil && len(content) > *maxLength {
+	if maxLength != nil && *maxLength >= 0 && len(content) > *maxLength {
 		content = content[:*maxLength]
 		content += "\n\n[Content truncated. Use start_index to get more content.]"
 	}

@@ -122,3 +122,17 @@ func TestProcessHTML(t *testing.T) {
 func intPtr(i int) *int {
 	return &i
 }
+
+func TestFormatContentNegativeBounds(t *testing.T) {
+	t.Parallel()
+
+	p := NewContentProcessor()
+	neg := -5
+
+	if got := p.FormatContent("hello", &neg, nil); got != "hello" {
+		t.Errorf("negative start_index: expected %q, got %q", "hello", got)
+	}
+	if got := p.FormatContent("hello", nil, &neg); got != "hello" {
+		t.Errorf("negative max_length: expected %q, got %q", "hello", got)
+	}
+}
