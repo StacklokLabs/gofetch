@@ -56,7 +56,7 @@ The server provides a single MCP tool called `fetch` with these parameters:
   "name": "fetch",
   "arguments": {
     "url": "https://example.com",           // Required: URL to fetch
-    "max_length": 5000,                     // Optional: Max characters (default: 5000, max: 1000000)
+    "max_length": 5000,                     // Optional: Max characters (minimum: 1, default: no limit)
     "start_index": 0,                       // Optional: Starting character index (default: 0)
     "raw": false                            // Optional: Return raw HTML vs markdown (default: false)
   }
@@ -67,15 +67,15 @@ The server provides a single MCP tool called `fetch` with these parameters:
 
 ### 1. StreamableHTTP (Default - Recommended)
 - **Endpoint**: `http://localhost:8080/mcp`
-- **Session Management**: HTTP headers (`Mcp-Session-Id`)
+- **Stateless**: No `Mcp-Session-Id`; `GET`/`DELETE` return 405. Stateless mode is required for the SDK to serve protocol version 2026-07-28
 - **Communication**: Single endpoint for both streaming and commands
 - **Modern**: Preferred transport for new implementations
 
-### 2. SSE (Legacy)
+### 2. SSE (Deprecated)
 - **SSE Endpoint**: `http://localhost:8080/sse` (server-to-client)
 - **Messages Endpoint**: `http://localhost:8080/messages` (client-to-server)
 - **Session Management**: Query parameters (`?sessionid=...`)
-- **Legacy**: Maintained for backward compatibility
+- **Deprecated**: Maintained for backward compatibility; doesn't support protocol version 2026-07-28 or later
 
 ## Configuration Options
 
@@ -139,19 +139,17 @@ task clean          # Clean build directory
 
 ### StreamableHTTP Example
 ```bash
-# Initialize session
-SESSION_ID=$(curl -s -D /dev/stderr -X POST "http://localhost:8080/mcp" \
-  -H "Content-Type: application/json" \
-  -H "Mcp-Protocol-Version: 2025-06-18" \
-  -d '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {...}}' \
-  2>&1 >/dev/null | grep "Mcp-Session-Id:" | cut -d' ' -f2)
-
-# Call fetch tool
+# Call the fetch tool (protocol 2026-07-28: no initialize handshake or session)
 curl -X POST "http://localhost:8080/mcp" \
   -H "Content-Type: application/json" \
-  -H "Mcp-Session-Id: $SESSION_ID" \
-  -d '{"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": {"name": "fetch", "arguments": {"url": "https://example.com"}}}'
+  -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Protocol-Version: 2026-07-28" \
+  -H "Mcp-Method: tools/call" \
+  -H "Mcp-Name: fetch" \
+  -d '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"_meta": {"io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": {}}, "name": "fetch", "arguments": {"url": "https://example.com"}}}'
 ```
+
+See `USAGE.md` for more examples, including earlier protocol versions.
 
 ## Security Considerations
 
@@ -176,7 +174,6 @@ The server provides comprehensive logging:
 - **Startup information**: Transport, port, user agent, endpoints
 - **Request logging**: URL fetching, HTTP status codes, content lengths
 - **Error logging**: Detailed error messages for debugging
-- **Session management**: Session creation and endpoint communication
 
 ## Performance Characteristics
 
@@ -189,11 +186,11 @@ The server provides comprehensive logging:
 ## Integration Points
 
 ### MCP Protocol Compliance
-- Full MCP specification compliance (2025-06-18)
+- MCP specification 2026-07-28, with backward compatibility to 2024-11-05 on Streamable HTTP
 - Tool registration and discovery
-- Session management with stateful/stateless support
+- Tool annotations (`readOnlyHint`, `idempotentHint`, `openWorldHint`) so clients don't treat `fetch` as a write tool
 - Error handling and logging
-- Proper HTTP method support (GET for SSE, POST for requests, DELETE for session termination)
+- Stateless Streamable HTTP (POST only); SSE uses GET for the event stream
 
 ### External Dependencies
 - **Web content**: HTTP fetching with proper headers

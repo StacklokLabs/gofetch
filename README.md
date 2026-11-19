@@ -129,12 +129,15 @@ markdown.
 #### Parameters
 
 - `url` (required): The URL to fetch
-- `max_length` (optional): Maximum number of characters to return (default:
-  5000, max: 1000000)
+- `max_length` (optional): Maximum number of characters to return (minimum: 1;
+  default: no limit)
 - `start_index` (optional): Starting character index for content extraction
-  (default: 0)
+  (minimum: 0; default: 0)
 - `raw` (optional): Return raw HTML content without simplification (default:
   false)
+
+The tool is annotated as read-only, idempotent, and open-world, so MCP clients
+don't treat it as a tool that modifies anything.
 
 #### Examples
 

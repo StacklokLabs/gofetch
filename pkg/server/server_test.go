@@ -2,10 +2,12 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stackloklabs/gofetch/pkg/config"
 )
 
@@ -292,5 +294,92 @@ func BenchmarkHandleFetchTool(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _, _ = server.handleFetchTool(ctx, nil, params)
+	}
+}
+
+func TestFetchToolDefinition(t *testing.T) {
+	t.Parallel()
+
+	fs := NewFetchServer(config.Config{Transport: config.TransportStreamableHTTP})
+
+	ctx := context.Background()
+	serverTransport, clientTransport := mcp.NewInMemoryTransports()
+	serverSession, err := fs.mcpServer.Connect(ctx, serverTransport, nil)
+	if err != nil {
+		t.Fatalf("server connect: %v", err)
+	}
+	defer serverSession.Close()
+
+	client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "v0.0.1"}, nil)
+	clientSession, err := client.Connect(ctx, clientTransport, nil)
+	if err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer clientSession.Close()
+
+	res, err := clientSession.ListTools(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTools: %v", err)
+	}
+	if len(res.Tools) != 1 {
+		t.Fatalf("expected 1 tool, got %d", len(res.Tools))
+	}
+	tool := res.Tools[0]
+
+	if tool.Name != "fetch" {
+		t.Errorf("expected tool name 'fetch', got %q", tool.Name)
+	}
+	if tool.Title == "" {
+		t.Error("expected tool title to be set")
+	}
+
+	a := tool.Annotations
+	if a == nil {
+		t.Fatal("expected tool annotations to be set")
+	}
+	if !a.ReadOnlyHint {
+		t.Error("expected readOnlyHint to be true")
+	}
+	if !a.IdempotentHint {
+		t.Error("expected idempotentHint to be true")
+	}
+	if a.OpenWorldHint == nil || !*a.OpenWorldHint {
+		t.Error("expected openWorldHint to be true")
+	}
+
+	// Round-trip the schema through JSON so the test checks what clients see.
+	raw, err := json.Marshal(tool.InputSchema)
+	if err != nil {
+		t.Fatalf("marshal input schema: %v", err)
+	}
+	var schema struct {
+		Required   []string `json:"required"`
+		Properties map[string]struct {
+			Description string   `json:"description"`
+			Minimum     *float64 `json:"minimum"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatalf("unmarshal input schema: %v", err)
+	}
+
+	for _, name := range []string{"url", "max_length", "start_index", "raw"} {
+		prop, ok := schema.Properties[name]
+		if !ok {
+			t.Errorf("expected input schema property %q", name)
+			continue
+		}
+		if prop.Description == "" {
+			t.Errorf("expected description for input schema property %q", name)
+		}
+	}
+	if len(schema.Required) != 1 || schema.Required[0] != "url" {
+		t.Errorf("expected only 'url' to be required, got %v", schema.Required)
+	}
+	if m := schema.Properties["max_length"].Minimum; m == nil || *m != 1 {
+		t.Errorf("expected max_length minimum of 1, got %v", m)
+	}
+	if m := schema.Properties["start_index"].Minimum; m == nil || *m != 0 {
+		t.Errorf("expected start_index minimum of 0, got %v", m)
 	}
 }

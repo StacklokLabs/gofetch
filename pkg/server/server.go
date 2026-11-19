@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stackloklabs/gofetch/pkg/config"
 	"github.com/stackloklabs/gofetch/pkg/fetcher"
@@ -19,10 +20,10 @@ import (
 
 // FetchParams defines the input parameters for the fetch tool
 type FetchParams struct {
-	URL        string `json:"url" mcp:"URL to fetch"`
-	MaxLength  *int   `json:"max_length,omitempty" mcp:"Maximum number of characters to return"`
-	StartIndex *int   `json:"start_index,omitempty" mcp:"Start index for truncated content"`
-	Raw        bool   `json:"raw,omitempty" mcp:"Get the actual HTML content without simplification"`
+	URL        string `json:"url" jsonschema:"URL to fetch"`
+	MaxLength  *int   `json:"max_length,omitempty" jsonschema:"Maximum number of characters to return (default: no limit)"`
+	StartIndex *int   `json:"start_index,omitempty" jsonschema:"Character index to start from when paging through truncated content"`
+	Raw        bool   `json:"raw,omitempty" jsonschema:"Return the raw page content without converting HTML to markdown"`
 }
 
 // FetchServer represents the MCP server for fetching web content
@@ -63,9 +64,7 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 	mcpServer := mcp.NewServer(&mcp.Implementation{
 		Name:    config.ServerName,
 		Version: config.ServerVersion,
-	}, &mcp.ServerOptions{
-		InitializedHandler: fs.handleInitialized,
-	})
+	}, nil)
 
 	fs.mcpServer = mcpServer
 
@@ -75,31 +74,46 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 	return fs
 }
 
-// handleInitialized logs the endpoint URI for the initialized session.
-func (fs *FetchServer) handleInitialized(_ context.Context, initRequest *mcp.InitializedRequest) {
-	// Build the endpoint URI based on the current server configuration
-	var endpointURI string
-	switch fs.config.Transport {
-	case config.TransportSSE:
-		endpointURI = fmt.Sprintf("http://localhost:%d/messages", fs.config.Port)
-	case config.TransportStreamableHTTP:
-		endpointURI = fmt.Sprintf("http://localhost:%d/mcp", fs.config.Port)
-	default:
-		endpointURI = fmt.Sprintf("http://localhost:%d/messages", fs.config.Port)
-	}
-
-	log.Printf("Initialized client session %s; message endpoint: %s", initRequest.Session.ID(), endpointURI)
-}
-
 // setupTools registers the fetch tool with the MCP server
 func (fs *FetchServer) setupTools() {
 	fetchTool := &mcp.Tool{
 		Name:        "fetch",
+		Title:       "Fetch URL",
 		Description: "Fetches a URL from the internet and optionally extracts its contents as markdown.",
+		InputSchema: fetchInputSchema(),
+		// Fetching only reads remote content and never modifies the
+		// environment, so mark the tool read-only. Without these hints,
+		// clients fall back to the spec defaults (readOnlyHint=false,
+		// destructiveHint=true) and treat the tool as a destructive write.
+		Annotations: &mcp.ToolAnnotations{
+			Title:          "Fetch URL",
+			ReadOnlyHint:   true,
+			IdempotentHint: true,
+			OpenWorldHint:  boolPtr(true),
+		},
 	}
 
 	mcp.AddTool(fs.mcpServer, fetchTool, fs.handleFetchTool)
 }
+
+// fetchInputSchema infers the input schema from FetchParams and adds bounds
+// that struct tags can't express. The SDK validates arguments against this
+// schema before the handler runs.
+func fetchInputSchema() *jsonschema.Schema {
+	schema, err := jsonschema.For[FetchParams](nil)
+	if err != nil {
+		// FetchParams is a static type, so inference can only fail on a
+		// programming error.
+		panic(fmt.Sprintf("inferring fetch input schema: %v", err))
+	}
+	schema.Properties["max_length"].Minimum = float64Ptr(1)
+	schema.Properties["start_index"].Minimum = float64Ptr(0)
+	return schema
+}
+
+func boolPtr(b bool) *bool { return &b }
+
+func float64Ptr(f float64) *float64 { return &f }
 
 // handleFetchTool processes fetch tool requests
 func (fs *FetchServer) handleFetchTool(
@@ -188,7 +202,12 @@ func (fs *FetchServer) startStreamableHTTPServer() error {
 			return fs.mcpServer
 		},
 		&mcp.StreamableHTTPOptions{
-			// Configure any specific options here if needed
+			// The fetch tool keeps no state between calls, so run statelessly.
+			// The SDK only serves MCP 2026-07-28 and later (which removed
+			// protocol-level sessions) in stateless mode. Clients on earlier
+			// protocol versions still work; they just don't get an
+			// Mcp-Session-Id, which the earlier specs make optional.
+			Stateless: true,
 		},
 	)
 
@@ -221,6 +240,8 @@ func (fs *FetchServer) logServerStartup() {
 	// Log endpoint based on transport
 	switch fs.config.Transport {
 	case config.TransportSSE:
+		log.Printf("WARNING: the HTTP+SSE transport is deprecated by the MCP specification " +
+			"and does not support protocol version 2026-07-28 or later; use streamable-http instead")
 		log.Printf("SSE endpoint (server-to-client): http://localhost:%d/sse", fs.config.Port)
 		log.Printf("Messages endpoint (client-to-server): http://localhost:%d/messages", fs.config.Port)
 	case config.TransportStreamableHTTP:
