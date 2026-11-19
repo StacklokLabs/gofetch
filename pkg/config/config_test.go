@@ -9,7 +9,7 @@ func TestConfigConstants(t *testing.T) {
 		expected interface{}
 	}{
 		{"ServerName", ServerName, "fetch-server"},
-		{"ServerVersion", ServerVersion, "1.0.0"},
+		{"DefaultVersion", DefaultVersion, "dev"},
 		{"DefaultUA", DefaultUA, "Mozilla/5.0 (compatible; MCPFetchBot/1.0)"},
 		{"TransportSSE", TransportSSE, "sse"},
 		{"TransportStreamableHTTP", TransportStreamableHTTP, "streamable-http"},

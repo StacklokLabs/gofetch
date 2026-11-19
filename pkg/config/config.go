@@ -9,9 +9,10 @@ import (
 
 // Constants
 const (
-	ServerName    = "fetch-server"
-	ServerVersion = "1.0.0"
-	DefaultUA     = "Mozilla/5.0 (compatible; MCPFetchBot/1.0)"
+	ServerName = "fetch-server"
+	// DefaultVersion is the version reported when Config.Version is empty.
+	DefaultVersion = "dev"
+	DefaultUA      = "Mozilla/5.0 (compatible; MCPFetchBot/1.0)"
 )
 
 // Transport types
@@ -22,6 +23,9 @@ const (
 
 // Config holds the server configuration
 type Config struct {
+	// Version is the server version reported to clients. Defaults to
+	// DefaultVersion if empty.
+	Version      string
 	Port         int
 	UserAgent    string
 	IgnoreRobots bool
