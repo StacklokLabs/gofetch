@@ -383,3 +383,43 @@ func TestFetchToolDefinition(t *testing.T) {
 		t.Errorf("expected start_index minimum of 0, got %v", m)
 	}
 }
+
+func TestServerVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		version string
+		want    string
+	}{
+		{name: "configured", version: "1.2.3", want: "1.2.3"},
+		{name: "empty uses default", version: "", want: config.DefaultVersion},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			fs := NewFetchServer(config.Config{Transport: config.TransportStreamableHTTP, Version: tt.version})
+
+			ctx := context.Background()
+			serverTransport, clientTransport := mcp.NewInMemoryTransports()
+			serverSession, err := fs.mcpServer.Connect(ctx, serverTransport, nil)
+			if err != nil {
+				t.Fatalf("server connect: %v", err)
+			}
+			defer serverSession.Close()
+
+			client := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "v0.0.1"}, nil)
+			clientSession, err := client.Connect(ctx, clientTransport, nil)
+			if err != nil {
+				t.Fatalf("client connect: %v", err)
+			}
+			defer clientSession.Close()
+
+			if got := clientSession.InitializeResult().ServerInfo.Version; got != tt.want {
+				t.Errorf("server version = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

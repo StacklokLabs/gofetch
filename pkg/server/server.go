@@ -61,9 +61,14 @@ func NewFetchServer(cfg config.Config) *FetchServer {
 
 	// Create MCP server with proper implementation details
 	// Capabilities are automatically generated based on registered tools/resources
+	version := cfg.Version
+	if version == "" {
+		version = config.DefaultVersion
+	}
+
 	mcpServer := mcp.NewServer(&mcp.Implementation{
 		Name:    config.ServerName,
-		Version: config.ServerVersion,
+		Version: version,
 	}, nil)
 
 	fs.mcpServer = mcpServer
